@@ -1,0 +1,11 @@
+What if cloud administrators become malicious? 
+
+During their management routines, admins may require high privileges (e.g. root) over the nodes they manage. For the cloud owner or the clients this may become problematic since administrators may do what they please without being logged. Logging systems local to the managed nodes are weak and prone to tampering by the admin itself. 
+
+Auditing hub is a solution that, using OpenSSH tunneling mode and some Java code, together with an intermediate machine (hosting the logger code) allows administrators actions to be logged. 
+
+Simply put, the admin uses the client side code (AdminClient/AdminInterface) that creates a local SSH tunnel to the intermediate machine. The intermediate machine then redirects the traffic to the local logger (AuditingHub/AuditingHub) running on it. This logger also establishes the connection to the node the admin wants to connect to.
+
+Assuming there are auditors to check the logs, AuditorInterface allows them to check logs and commit them. Right now, this interface is very simplistic.
+
+Auditing Hub may also be used by anyone that requires SSH sessions to be logged, even though it appears in the context of cloud computing.
