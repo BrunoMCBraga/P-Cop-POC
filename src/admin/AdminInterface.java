@@ -1,8 +1,6 @@
 package admin;
 import java.lang.ProcessBuilder;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,11 +8,8 @@ import global.Ports;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.lang.Process;
 
@@ -28,7 +23,6 @@ import java.lang.Process;
 
 public class AdminInterface {
 	
-	private static final int HELP_FLAG_INDEX=0;
 	private static final int HUB_FLAG_INDEX=0;
 	private static final int HOST_FLAG_INDEX=2;
 	private static final int USERNAME_FLAG_INDEX=4;

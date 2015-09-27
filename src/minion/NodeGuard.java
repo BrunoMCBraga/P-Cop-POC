@@ -12,10 +12,11 @@ import java.net.SocketImpl;
 import java.net.UnknownHostException;
 
 import auditinghub.AdminSession;
+import global.Messages;
 import global.Ports;
 
 /*
- * NodeGuard -m monitorHostName -p port
+ * NodeGuard -m monitorHostName
  * In terms of application deployment, files will not be transmitted through this channel but using SSH.This is just a control channel
  * How it word:
  * 1.Nodes contact master so it learns of their address
@@ -27,27 +28,17 @@ import global.Ports;
 
 public class NodeGuard {
 	
-	private static final String helloMonitor="hello";//empty for now. 
-	private static final String byeMonitor="bye";//empty for now. 
-	
-	
-	//Local server ports
-	private static final int MONITOR_LOCAL_PORT = 10000;
-	private static final int LOGGER_LOCAL_PORT = 10001;
-
-
-
 	public static void main(String[] args){
 		
-		
-		if(args.length != 4){
-			System.err.println("NodeGuard -m monitorHostName -p port");
+		System.out.println("Started Node Guard");
+		if(args.length != 2){
+			System.err.println("NodeGuard -m monitorHostName");
 			System.exit(1);
 		}
 		
 		Socket monitorSocket = null;
 		try {
-			monitorSocket = new Socket(args[1],Integer.parseInt(args[3]));
+			monitorSocket = new Socket(args[1],Ports.MONITOR_MINION_PORT);
 		} catch (NumberFormatException|IOException e) {
 			System.err.println("Error on socket creation and connection:"+e.getMessage());
 			System.exit(1);
@@ -65,7 +56,7 @@ public class NodeGuard {
 		
 		//sending control message
 		try {
-			monitorSessionWriter.write(helloMonitor);
+			monitorSessionWriter.write(Messages.REGISTER);
 			monitorSessionWriter.newLine();
 			monitorSessionWriter.flush();
 		} catch (IOException e) {
@@ -78,30 +69,32 @@ public class NodeGuard {
 		
 		
 		try {
-			monitorSessionReader.readLine();
+			monitorResponse = monitorSessionReader.readLine();
 		} catch (IOException e) {
 			System.err.println("Error on receiving bye:"+e.getMessage());
 			System.exit(1);
 		}
-		if(!monitorResponse.equals(byeMonitor))
+		if(!monitorResponse.equals(Messages.OK))
 		{
-			System.err.println("Error on synchronizing with master. Expected:" + byeMonitor + " Received:"+monitorResponse);
+			System.err.println("Error on synchronizing with master. Expected:" + Messages.OK + " Received:"+monitorResponse);
 			System.exit(1);
 		}
 		
-		ServerSocket monitorControlSocket = null;
-		ServerSocket loggerControlSocket = null;
+		System.out.println("Registered successfully.");
+		
+		ServerSocket monitorControlServerSocket = null;
+		ServerSocket hubControlServerSocket = null;
 
 		try {
-			new ServerSocket(Ports.MINION_MONITOR_PORT);
-			new ServerSocket(Ports.MINION_HUB_PORT);
+			monitorControlServerSocket = new ServerSocket(Ports.MINION_MONITOR_PORT);
+			hubControlServerSocket = new ServerSocket(Ports.MINION_HUB_PORT);
 		} catch (IOException e) {
 			System.err.println("Error on creating server sockets:"+e.getMessage());
 			System.exit(1);
 		}
 		
-		new Thread(new MonitorRequestsHandler(monitorControlSocket)).start();
-		new Thread(new LoggersRequestsHandler(loggerControlSocket)).start();
+		new Thread(new MonitorRequestsHandler(monitorControlServerSocket)).start();
+		new Thread(new LoggersRequestsHandler(hubControlServerSocket)).start();
 		
 
 		while(true){

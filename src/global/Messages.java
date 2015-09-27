@@ -16,11 +16,12 @@ public class Messages {
 	public static final String DEPLOY="DEPLOY";
 
 	//Loggers->Monitor
-	public static final String SET_TRUSTED = null;
-	public static final String SET_UNTRUSTED = null;
+	public static final String SET_TRUSTED = "SET_TRUSTED";
+	public static final String SET_UNTRUSTED = "SET_UNTRUSTED";
 	
 	//Developer->Monitor
-	public static final String NEW_APP = null;
+	public static final String NEW_APP = "NEW_APP";
+
 
 
 

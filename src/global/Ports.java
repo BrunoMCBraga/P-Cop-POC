@@ -1,7 +1,5 @@
 package global;
 
-import java.net.SocketImpl;
-
 public class Ports {
 	
 	//On monitor

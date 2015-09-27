@@ -20,8 +20,8 @@ public class MonitorRequestsHandler implements Runnable {
 
 	private ServerSocket monitorServerSocket;
 	
-	public MonitorRequestsHandler(ServerSocket monitorSocket) {
-		this.monitorServerSocket = monitorSocket;
+	public MonitorRequestsHandler(ServerSocket monitorServerSocket) {
+		this.monitorServerSocket = monitorServerSocket;
 	}
 	
 	private void processMonitorRequest(Socket monitorSocket) throws IOException{

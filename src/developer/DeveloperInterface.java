@@ -2,11 +2,9 @@ package developer;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
@@ -60,8 +58,8 @@ public class DeveloperInterface {
 		BufferedWriter monitorWriter = null;
 		
 		try {
-			new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
-			new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
+			monitorReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
+			monitorWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 		} catch (IOException e) {
 			System.out.println("Unable to retrieve socket streams for monitor:"+e.getMessage());
 			System.exit(1);
@@ -70,7 +68,7 @@ public class DeveloperInterface {
 		System.out.println("Sending directory to monitor....");
 		Path appPath = FileSystems.getDefault().getPath(appDir);
 		try {
-			monitorWriter.write(String.format("%s $s %s", Messages.NEW_APP,username,appPath.getFileName().toString()));
+			monitorWriter.write(String.format("%s %s %s", Messages.NEW_APP,username,appPath.getFileName().toString()));
 			monitorWriter.newLine();
 			monitorWriter.flush();
 		} catch (IOException e) {
@@ -91,5 +89,7 @@ public class DeveloperInterface {
 			System.out.println("Failed!");
 			System.exit(1);
 		}
+		
+		System.out.println("Success.");
 	}
 }
