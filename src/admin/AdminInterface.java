@@ -42,7 +42,7 @@ public class AdminInterface {
 			hubHost=args[HUB_FLAG_INDEX+1];
 			remoteHost=args[HOST_FLAG_INDEX+1];
 			
-			sshArgs = String.format("-i %s -f %s@%s -L %d:%s:%d -N",ADMIN_CREDENTIALS_PATH, userName,hubHost,Ports.ADMIN_SSH_PORT,hubHost,Ports.HUB_LOCAL_PORT);
+			sshArgs = String.format("-i %s -oStrictHostKeyChecking=no -f %s@%s -L %d:%s:%d -N",ADMIN_CREDENTIALS_PATH, userName,hubHost,Ports.ADMIN_SSH_PORT,hubHost,Ports.HUB_LOCAL_PORT);
 			
 			break;
 		

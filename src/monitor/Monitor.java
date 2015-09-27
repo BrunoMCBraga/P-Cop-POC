@@ -12,6 +12,8 @@ import java.util.Random;
 import global.Ports;
 
 /*
+ * Usage Monitor -u username -k sshKey
+ * 
  * Must expect connections from developers
  * Must expect connections from logger
  * Must expect connections from nodes
@@ -20,7 +22,11 @@ import global.Ports;
  * */
 
 public class Monitor {
-
+	
+	
+	private static final int USERNAME_FLAG_INDEX=0;
+	private static final int KEY_FLAG_INDEX=2;
+	
 	//Maps IPs to Minions
 	private Map<String,Minion> trustedMinions;
 	private Object[] trustedMinionsArray;
@@ -85,8 +91,27 @@ public class Monitor {
 	}
 
 	public static void main(String[] args){
+		
+		
 
 		System.out.println("Started Monitor");
+		
+		String userName = "";
+		String sshKey = "";
+		
+				
+		String sshArgs = "";
+		switch (args.length){
+		case 4:
+			userName = args[USERNAME_FLAG_INDEX+1];
+			sshKey=args[KEY_FLAG_INDEX+1];			
+			break;
+		
+		default:
+			System.out.println("Usage: Monitor -u username -j sshKey");
+			System.exit(0);
+			break;
+		}
 
 		Monitor monitor = new Monitor();
 		ServerSocket developersServerSocket = null;
@@ -102,7 +127,7 @@ public class Monitor {
 		}
 
 		new Thread(new HubsRequestsHandler(hubsServerSocket,monitor)).start();
-		new Thread(new DevelopersRequestsHandler(developersServerSocket,monitor)).start();
+		new Thread(new DevelopersRequestsHandler(developersServerSocket,monitor,userName,sshKey)).start();
 		new Thread(new MinionsRequestsHandler(minionsServerSocket,monitor)).start();
 
 	}
