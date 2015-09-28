@@ -2,6 +2,7 @@ package minion;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -32,7 +33,7 @@ public class MonitorRequestsHandler implements Runnable {
 		String dockerAppName=appDir.toLowerCase();
 		
 		String createContainerCommand = String.format("sudo docker build -t %s-container ../../%s",dockerAppName,appDir);
-		String deployContainerCommand = String.format("sudo docker run -it -p 80 --rm --name %s %s-container",dockerAppName,dockerAppName);
+		String deployContainerCommand = String.format("sudo docker run -p 80 -d --name %s %s-container",dockerAppName,dockerAppName);
 		
 		
 		String[]  createContainerCommandArray = createContainerCommand.split(" ");
@@ -48,7 +49,10 @@ public class MonitorRequestsHandler implements Runnable {
 			//System.exit(1);
 		}
 		ProcessBuilder deployConainerProcessBuilder = new ProcessBuilder(deployContainerCommandArray);
+		deployConainerProcessBuilder.redirectOutput(new File("Out.txt"));
+		deployConainerProcessBuilder.redirectError(new File("Err.txt"));
 		Process deployProcess = deployConainerProcessBuilder.start();
+
 		//int deployContainerResult = deployProcess.waitFor();
 		//if (deployContainerResult != 0){
 			//Not sure why but the process runs but returns an abnormal value...
