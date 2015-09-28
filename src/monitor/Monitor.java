@@ -126,7 +126,17 @@ public class Monitor {
 			if(this.appsHosts.get(appId) == null)
 				this.appsHosts.put(appId, new ArrayList<Minion>());
 			this.appsHosts.get(appId).add(m);
+			System.out.println("Added host:"+m.getIpAddress()+ " with app id:" + appId);
+
 		}
+	}
+	
+	public void deleteApplication(String appId) {
+		this.applications.remove(appId);
+		List<Minion> minions = this.appsHosts.remove(appId);
+		for(Minion host : minions)
+			host.removeApp(appId);
+		
 	}
 	
 	public List<Minion> getHosts(String appId){
@@ -174,4 +184,6 @@ public class Monitor {
 		new Thread(new MinionsRequestsHandler(minionsServerSocket,monitor)).start();
 
 	}
+
+	
 }

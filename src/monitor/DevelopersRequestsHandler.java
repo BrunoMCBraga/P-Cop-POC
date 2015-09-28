@@ -108,6 +108,7 @@ public class DevelopersRequestsHandler implements Runnable {
 		Socket minionSocket =  null;
 		BufferedReader socketReader = null; 
 		BufferedWriter socketWriter = null;
+		boolean result = true;
 
 		for(Minion m : appHosts){
 			minionSocket = new Socket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
@@ -117,9 +118,22 @@ public class DevelopersRequestsHandler implements Runnable {
 			socketWriter.write(String.format("%s %s",Messages.DELETE, appId));
 			socketWriter.newLine();
 			socketWriter.flush();
-			return true;//??
+			if(socketReader.readLine().equals(Messages.OK)){
+				result &= true;
+				
+
+			}
+			else
+				result &= false;
 
 		}
+		
+
+		if(result)
+			this.monitor.deleteApplication(appId);
+		
+
+
 
 		return false;
 	}

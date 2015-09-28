@@ -1,16 +1,18 @@
 package monitor;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 public class Minion {
 	
 	private String ipAddress;
-	private List<Application> minionApplications;
+	private Map<String, Application> minionApplications;
 
 	public Minion(String ipAddress){
 		this.ipAddress = ipAddress;
-		this.minionApplications = new ArrayList<Application>();
+		this.minionApplications = new Hashtable<String,Application>();
 		
 	}
 	
@@ -19,7 +21,13 @@ public class Minion {
 	}
 	
 	public void addApp(Application app){
-		this.minionApplications.add(app);
+		this.minionApplications.put(app.getAppId(),app);
 	}
+	
+	public void removeApp(String appId){
+		this.minionApplications.remove(appId);
+	}
+	
+	
 
 }

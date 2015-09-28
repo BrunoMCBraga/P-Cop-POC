@@ -73,6 +73,9 @@ public class MonitorRequestsHandler implements Runnable {
 
 		
 		ProcessBuilder deleteAppProcessBuilder = new ProcessBuilder(deleteAppCommandArray);
+		deleteAppProcessBuilder.redirectError(new File("Err.txt"));
+		deleteAppProcessBuilder.redirectOutput(new File("out.txt"));
+
 		Process deleteAppCommandProcess = deleteAppProcessBuilder.start();
 		int deleteContainerResult = deleteAppCommandProcess.waitFor();
 		if (deleteContainerResult != 0){
