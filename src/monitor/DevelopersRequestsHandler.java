@@ -19,8 +19,10 @@ import global.Ports;
 import global.Messages;
 
 public class DevelopersRequestsHandler implements Runnable {
-	
+
 	private static final String SCP_DIR="/usr/bin/scp";
+	private static final String SSH_DIR="/usr/bin/ssh";
+
 	private ServerSocket developersServerSokcet;
 	private Monitor monitor;
 	private String userName;
@@ -57,13 +59,13 @@ public class DevelopersRequestsHandler implements Runnable {
 
 	private boolean pickMinionAndDeploy(String appId, int instances) throws UnknownHostException, IOException {
 		List<Minion> trustedMinions =  null;
-		
+
 		try {
 			trustedMinions = monitor.pickNTrustedMinions(instances);
 		} catch (InsufficientMinions e) {
 			System.err.println("Failed to pick trusted instances:" + e.getMessage());
 		}
-		
+
 		Socket minionSocket =  null;
 		BufferedReader socketReader = null; 
 		BufferedWriter socketWriter = null;
@@ -84,10 +86,10 @@ public class DevelopersRequestsHandler implements Runnable {
 			socketWriter.flush();
 
 		}
-		
+
 		//this assumes the deployment works. the error codes returned by process waitfor are not correct and therefore do not allow correct verification.AFAIK
 		this.monitor.addApplication(appId, trustedMinions);
-		
+
 		if(scpResult)
 			System.out.println("Successfully sent app files for:"+appId);
 
@@ -98,6 +100,31 @@ public class DevelopersRequestsHandler implements Runnable {
 
 
 	}
+
+	private boolean deleteApp(String appId) throws UnknownHostException, IOException {
+		List<Minion> appHosts = this.monitor.getHosts(appId);
+
+
+		Socket minionSocket =  null;
+		BufferedReader socketReader = null; 
+		BufferedWriter socketWriter = null;
+
+		for(Minion m : appHosts){
+			minionSocket = new Socket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
+			socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
+			socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
+			System.out.println("Deleting app on minions.");
+			socketWriter.write(String.format("%s %s",Messages.DELETE, appId));
+			socketWriter.newLine();
+			socketWriter.flush();
+			return true;//??
+
+		}
+
+		return false;
+	}
+
+
 	private void processDeveloperRequest(Socket developerSocket) throws IOException{
 		BufferedReader socketReader = null; 
 		BufferedWriter socketWriter = null;
@@ -108,21 +135,30 @@ public class DevelopersRequestsHandler implements Runnable {
 
 		String monitorRequest= socketReader.readLine();
 		String[] splittedRequest = monitorRequest.split(" ");
-		boolean deploymentResult = false;
+		boolean actionResult = false;
 		if(splittedRequest[0].equals(Messages.NEW_APP)){
 			System.out.println(String.format("Deploying:%s from:%s",splittedRequest[2],splittedRequest[1]));
-			deploymentResult = pickMinionAndDeploy(splittedRequest[2], Integer.parseInt(splittedRequest[3]));
+			actionResult = pickMinionAndDeploy(splittedRequest[2], Integer.parseInt(splittedRequest[3]));
+			if(actionResult == true){
+				System.out.println("Deployment confirmation received.");
+				socketWriter.write(Messages.OK);
+				socketWriter.newLine();
+				socketWriter.flush();
+			}
+		}
+
+		if(splittedRequest[0].equals(Messages.DELETE_APP)){
+			System.out.println(String.format("Deleting:%s from:%s",splittedRequest[2],splittedRequest[1]));
+			actionResult = deleteApp(splittedRequest[2]);
+			if(actionResult == true){
+				System.out.println("Deletion confirmation received.");
+				socketWriter.write(Messages.OK);
+				socketWriter.newLine();
+				socketWriter.flush();
+			}
 
 		}
-		if(deploymentResult == true){
-			System.out.println("Deployment confirmation received.");
-			socketWriter.write(Messages.OK);
-			socketWriter.newLine();
-			socketWriter.flush();
-		}
-
 	}
-
 
 
 	@Override

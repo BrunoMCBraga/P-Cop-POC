@@ -31,9 +31,9 @@ public class DeveloperInterface {
 
 	private static final String SCP_DIR="/usr/bin/scp";
 
-	
+
 	private static boolean sendApp(String userName, String keyPath, String hostname, String appDir) throws IOException, InterruptedException{
-		
+
 		String scpArgs = String.format("-r -i %s -oStrictHostKeyChecking=no  %s %s@%s:~",keyPath, appDir,userName,hostname);
 		String[] scpArgsArray = scpArgs.split(" ");
 		List<String> finalCommand = new ArrayList<String>(scpArgsArray.length+1);
@@ -72,7 +72,12 @@ public class DeveloperInterface {
 			appDir=args[APPDIR_FLAG_INDEX+1];
 			instances = args[INSTANCES_FLAG_INDEX+1];
 			break;
-
+		case 8:
+			monitor = args[MONITOR_FLAG_INDEX+1];
+			username=args[USERNAME_FLAG_INDEX+1];
+			key = args[KEY_FLAG_INDEX+1];
+			appDir=args[APPDIR_FLAG_INDEX+1];
+			break;
 		default:
 			System.out.println("Usage: AdminInterface -a hub -h host -u username");
 			System.exit(0);
@@ -87,10 +92,10 @@ public class DeveloperInterface {
 			System.out.println("Unable to create monitor socket:"+e.getMessage());
 			System.exit(1);
 		}
-		
+
 		BufferedReader monitorReader = null;
 		BufferedWriter monitorWriter = null;
-		
+
 		try {
 			monitorReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 			monitorWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
@@ -98,43 +103,58 @@ public class DeveloperInterface {
 			System.out.println("Unable to retrieve socket streams for monitor:"+e.getMessage());
 			System.exit(1);
 		}
-		
-		System.out.println("Sending directory to monitor....");
-		boolean sendResult=false;
-		try {
-			sendResult = DeveloperInterface.sendApp(username, key, monitor, appDir);
-		} catch (IOException | InterruptedException e) {
-			System.out.println("Unable to send files:"+e.getMessage());
-			System.exit(1);
+
+		if(args.length == 10){
+			System.out.println("Sending directory to monitor....");
+			boolean sendResult=false;
+			try {
+				sendResult = DeveloperInterface.sendApp(username, key, monitor, appDir);
+			} catch (IOException | InterruptedException e) {
+				System.out.println("Unable to send files:"+e.getMessage());
+				System.exit(1);
+			}
+
+			if(!sendResult)
+				System.err.println("Failed to create scp process.");
+
+			Path appPath = FileSystems.getDefault().getPath(appDir);
+			try {
+				monitorWriter.write(String.format("%s %s %s %s", Messages.NEW_APP,username,appPath.getFileName().toString(),instances));
+				monitorWriter.newLine();
+				monitorWriter.flush();
+			} catch (IOException e) {
+				System.out.println("Unable to send new app request:"+e.getMessage());
+				System.exit(1);
+			}
 		}
 		
-		if(!sendResult)
-			System.err.println("Failed to create scp process.");
-		
-		Path appPath = FileSystems.getDefault().getPath(appDir);
-		try {
-			monitorWriter.write(String.format("%s %s %s %s", Messages.NEW_APP,username,appPath.getFileName().toString(),instances));
-			monitorWriter.newLine();
-			monitorWriter.flush();
-		} catch (IOException e) {
-			System.out.println("Unable to send new app request:"+e.getMessage());
-			System.exit(1);
+		else if (args.length==8){
+			Path appPath = FileSystems.getDefault().getPath(appDir);
+			try {
+				monitorWriter.write(String.format("%s %s %s", Messages.DELETE_APP,username,appPath.getFileName().toString()));
+				monitorWriter.newLine();
+				monitorWriter.flush();
+			} catch (IOException e) {
+				System.out.println("Unable to delete app:"+e.getMessage());
+				System.exit(1);
+			}
+			
 		}
 		
 		String response = null; 
-		
+
 		try {
 			response = monitorReader.readLine();
 		} catch (IOException e) {
 			System.out.println("Unable to get OK from monitor:"+e.getMessage());
 			System.exit(1);
 		}
-		
+
 		if(!response.equals(Messages.OK)){
 			System.out.println("Failed!");
 			System.exit(1);
 		}
-		
+
 		System.out.println("Success.");
 	}
 }

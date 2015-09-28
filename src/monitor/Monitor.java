@@ -37,7 +37,7 @@ public class Monitor {
 	private Object[] trustedMinionsArray;
 	private Map<String,Minion> untrustedMinions;
 	private Random trustedMinionsGenerator;
-	private Map<String,Minion> appsHosts;
+	private Map<String,List<Minion>> appsHosts;
 	private Map<String,Application> applications;
 
 	public Monitor(){
@@ -46,7 +46,7 @@ public class Monitor {
 		this.trustedMinionsArray = this.trustedMinions.entrySet().toArray();
 		this.untrustedMinions = new Hashtable<String,Minion>();
 		this.trustedMinionsGenerator = new Random();
-		this.appsHosts = new Hashtable<String,Minion>();
+		this.appsHosts = new Hashtable<String,List<Minion>>();
 		this.applications = new Hashtable<String,Application>();
 
 	}
@@ -123,8 +123,14 @@ public class Monitor {
 		this.applications.put(appId, app);
 		for(Minion m : hosts){
 			m.addApp(app);
-			this.appsHosts.put(appId, m);
+			if(this.appsHosts.get(appId) == null)
+				this.appsHosts.put(appId, new ArrayList<Minion>());
+			this.appsHosts.get(appId).add(m);
 		}
+	}
+	
+	public List<Minion> getHosts(String appId){
+		return appsHosts.get(appId);		
 	}
 
 	public static void main(String[] args){
