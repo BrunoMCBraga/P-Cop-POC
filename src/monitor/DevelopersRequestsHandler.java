@@ -14,6 +14,7 @@ import java.util.List;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import exceptions.InsufficientMinions;
 import global.Ports;
 import global.Messages;
 
@@ -54,24 +55,41 @@ public class DevelopersRequestsHandler implements Runnable {
 		return true;
 	}
 
-	private boolean pickMinionAndDeploy(String appFolder) throws UnknownHostException, IOException {
-		Minion trustedMinion =  monitor.pickTrustedMinion();
-		Socket minionSocket = new Socket(trustedMinion.getIpAddress(), Ports.MINION_MONITOR_PORT);
-		BufferedReader socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
-		BufferedWriter socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
-		System.out.println("Uploading app to minion...");
-		boolean scpResult = false;
+	private boolean pickMinionAndDeploy(String appId, int instances) throws UnknownHostException, IOException {
+		List<Minion> trustedMinions =  null;
+		
 		try {
-			scpResult = sendApp(trustedMinion,appFolder);
-		} catch (InterruptedException e) {
-			System.err.println("Unable to scp files to minion:"+e.getMessage());
+			trustedMinions = monitor.pickNTrustedMinions(instances);
+		} catch (InsufficientMinions e) {
+			System.err.println("Failed to pick trusted instances:" + e.getMessage());
 		}
-		socketWriter.write(String.format("%s %s",Messages.DEPLOY, appFolder));
-		socketWriter.newLine();
-		socketWriter.flush();
+		
+		Socket minionSocket =  null;
+		BufferedReader socketReader = null; 
+		BufferedWriter socketWriter = null;
+		boolean scpResult = true;
+
+		for(Minion m : trustedMinions){
+			minionSocket = new Socket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
+			socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
+			socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
+			System.out.println("Uploading app to minion...");
+			try {
+				scpResult &= sendApp(m,appId);
+			} catch (InterruptedException e) {
+				System.err.println("Unable to scp files to minion:"+e.getMessage());
+			}
+			socketWriter.write(String.format("%s %s",Messages.DEPLOY, appId));
+			socketWriter.newLine();
+			socketWriter.flush();
+
+		}
+		
+		//this assumes the deployment works. the error codes returned by process waitfor are not correct and therefore do not allow correct verification.AFAIK
+		this.monitor.addApplication(appId, trustedMinions);
 		
 		if(scpResult)
-			System.out.println("Successfully sent app files for:"+appFolder);
+			System.out.println("Successfully sent app files for:"+appId);
 
 		if(socketReader.readLine().equals(Messages.OK))
 			return true;
@@ -93,7 +111,7 @@ public class DevelopersRequestsHandler implements Runnable {
 		boolean deploymentResult = false;
 		if(splittedRequest[0].equals(Messages.NEW_APP)){
 			System.out.println(String.format("Deploying:%s from:%s",splittedRequest[2],splittedRequest[1]));
-			deploymentResult = pickMinionAndDeploy(splittedRequest[2]);
+			deploymentResult = pickMinionAndDeploy(splittedRequest[2], Integer.parseInt(splittedRequest[3]));
 
 		}
 		if(deploymentResult == true){

@@ -17,7 +17,7 @@ import global.Messages;
 /*
  * Usage:
  * AdminInterface -h: help
- * AdminInterface -m monitor -u username -k key -d appDir
+ * AdminInterface -m monitor -u username -k key -d appDir -n instances
  * 
  * 
  * */
@@ -27,6 +27,8 @@ public class DeveloperInterface {
 	private static final int USERNAME_FLAG_INDEX=2;
 	private static final int KEY_FLAG_INDEX=4;
 	private static final int APPDIR_FLAG_INDEX=6;
+	private static final int INSTANCES_FLAG_INDEX=8;
+
 	private static final String SCP_DIR="/usr/bin/scp";
 
 	
@@ -60,13 +62,15 @@ public class DeveloperInterface {
 		String username = null;
 		String key=null;
 		String appDir = null;
+		String instances = null;
 
 		switch(args.length){
-		case 8:
+		case 10:
 			monitor = args[MONITOR_FLAG_INDEX+1];
 			username=args[USERNAME_FLAG_INDEX+1];
 			key = args[KEY_FLAG_INDEX+1];
-			appDir=args[APPDIR_FLAG_INDEX+1];			
+			appDir=args[APPDIR_FLAG_INDEX+1];
+			instances = args[INSTANCES_FLAG_INDEX+1];
 			break;
 
 		default:
@@ -109,7 +113,7 @@ public class DeveloperInterface {
 		
 		Path appPath = FileSystems.getDefault().getPath(appDir);
 		try {
-			monitorWriter.write(String.format("%s %s %s", Messages.NEW_APP,username,appPath.getFileName().toString()));
+			monitorWriter.write(String.format("%s %s %s %s", Messages.NEW_APP,username,appPath.getFileName().toString(),instances));
 			monitorWriter.newLine();
 			monitorWriter.flush();
 		} catch (IOException e) {
