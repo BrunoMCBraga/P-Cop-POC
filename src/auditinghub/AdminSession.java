@@ -16,16 +16,18 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import global.Messages;
+import global.ProcessBinaries;
+
 //TODO:Detect mistyping errors. Since the session is not interactive, erros seem not to be being sent.
 public class AdminSession implements Runnable {
 
-	private static final String HUB_CREDENTIALS_PATH="./";
-	private static final String HUB_USERNAME="securepa";
-	private static final String SSH_DIR="/usr/bin/ssh";
 	private static final String UNCOMMITED_LOGS_DIR="Logs/Uncommited/";
 
 	AuditingHub auditingHubInstance;
 	private Socket adminToHubSocket;
+	private String hubUserName;
+	private String hubKey;
 
 	private String adminUserName;
 	private String remoteHost;
@@ -33,10 +35,34 @@ public class AdminSession implements Runnable {
 	private Process auditingHubToNodeSessionProcess;
 	private Logger logger;
 
+
 	public AdminSession(AuditingHub auditingHubInstance,Socket adminToHubSocket){
 
 		this.auditingHubInstance = auditingHubInstance;
 		this.adminToHubSocket = adminToHubSocket;
+		this.hubUserName = auditingHubInstance.getHubUserName();
+		this.hubKey = auditingHubInstance.getHubKey();
+
+
+	}
+
+
+	private void launchSessionProcess() throws IOException{
+
+
+		String sshArgs = String.format("-i %s -oStrictHostKeyChecking=no -t %s@%s -vvvvv",this.hubKey+this.remoteHost, this.hubUserName,this.remoteHost);
+		System.out.println(sshArgs);
+		String[] sshArgsArray = sshArgs.split(" ");
+		List<String> finalCommand = new ArrayList<String>(sshArgsArray.length+1);
+		finalCommand.add(ProcessBinaries.SSH_DIR);
+
+		for (String arg : sshArgsArray)
+			finalCommand.add(arg);
+
+		ProcessBuilder sshSessionBuilder = new ProcessBuilder(finalCommand);
+
+		//TODO: what if it fails? Cannot wait but must check?
+		this.auditingHubToNodeSessionProcess = sshSessionBuilder.start();
 
 
 	}
@@ -60,21 +86,67 @@ public class AdminSession implements Runnable {
 
 	}
 
-	private void launchSessionProcess() throws IOException{
+
+	private boolean launchManagementSession() throws IOException {
+
+		launchSessionProcess();
+		launchLogger();
+
+		BufferedReader adminSessionReader = new BufferedReader(new InputStreamReader(adminToHubSocket.getInputStream()));
+		BufferedWriter adminSessionWriter = new BufferedWriter(new OutputStreamWriter(adminToHubSocket.getOutputStream()));
+
+		BufferedReader hostSessionReader = new BufferedReader(new InputStreamReader(this.auditingHubToNodeSessionProcess.getInputStream()));
+		BufferedWriter hostSessionWriter = new BufferedWriter(new OutputStreamWriter(this.auditingHubToNodeSessionProcess.getOutputStream()));
+
+		System.out.println("Session created. Sending prompt to admin...");
+		this.promptString = String.format("[%s@%s]>", this.adminUserName,this.remoteHost);
 
 
-		String sshArgs = String.format("-i %s -oStrictHostKeyChecking=no -t %s@%s -vvvvv",HUB_CREDENTIALS_PATH+this.remoteHost, HUB_USERNAME,this.remoteHost);
-		System.out.println(sshArgs);
-		String[] sshArgsArray = sshArgs.split(" ");
-		List<String> finalCommand = new ArrayList<String>(sshArgsArray.length+1);
-		finalCommand.add(SSH_DIR);
+		//The command must be put in "". Otherwise, the console will fail to run the echo. Also, the "" must be escaped.
+		hostSessionWriter.write("echo " + "\"" + this.promptString + "\"");
+		hostSessionWriter.newLine();
+		hostSessionWriter.flush();
 
-		for (String arg : sshArgsArray)
-			finalCommand.add(arg);
+		StringBuilder hostCompleteResponseBuilder = new StringBuilder();
+		String hostInput = null;
+		String hostOutput = null;
 
-		ProcessBuilder sshSessionBuilder = new ProcessBuilder(finalCommand);
-		this.auditingHubToNodeSessionProcess = sshSessionBuilder.start();
 
+		while (true){
+			try {
+				hostOutput = hostSessionReader.readLine();
+				hostCompleteResponseBuilder.append(hostOutput);
+				adminSessionWriter.write(hostOutput);
+				adminSessionWriter.newLine();
+				adminSessionWriter.flush();
+
+				if(!hostOutput.equals(this.promptString))
+					continue;
+				
+			} catch (IOException e) {
+				System.err.println("Failed to bridge Host->Admin:" + e.getMessage());
+				continue; //TODO:Think this through
+			}
+
+
+			this.logger.log(Level.ALL, "Host->Admin:\n"+hostCompleteResponseBuilder.toString());
+			hostCompleteResponseBuilder.setLength(0);
+
+			try {
+				hostInput = adminSessionReader.readLine();
+				hostSessionWriter.write(hostInput+"; echo " + "\"" + this.promptString + "\"");
+				hostSessionWriter.newLine();
+				hostSessionWriter.flush();
+			} catch (IOException e) {
+				System.err.println("Failed to bridge Admin->Host:" + e.getMessage());
+				continue;
+			}
+
+
+			this.logger.log(Level.ALL, "Admin->Host:"+hostInput);
+
+
+		}
 
 	}
 
@@ -87,109 +159,42 @@ public class AdminSession implements Runnable {
 			adminSessionReader = new BufferedReader(new InputStreamReader(adminToHubSocket.getInputStream()));
 			adminSessionWriter = new BufferedWriter(new OutputStreamWriter(adminToHubSocket.getOutputStream()));
 		} catch (IOException e) {
-			System.err.println("Error obtaining admin session streams:"+e.getMessage());
+			System.err.println("Error obtaining admin session streams:" + e.getMessage());
 			return;
 		}
 
-		String userAndHost;
+		String adminRequest;
 		try {
-			userAndHost = adminSessionReader.readLine();
+			adminRequest = adminSessionReader.readLine();
 		} catch (IOException e) {
-			System.err.println("Error reading synchronization string:"+e.getMessage());
+			System.err.println("Error reading synchronization string:" + e.getMessage());
 			return;
 		} 
 
-		System.out.println("Destination host and username received:" + userAndHost);
-		String userAndHostArray[] = userAndHost.split("@"); 
-		this.adminUserName=userAndHostArray[0];
-		this.remoteHost=userAndHostArray[1];
+		String[] splittedRequest = adminRequest.split(" ");
 
-		if(!this.auditingHubInstance.checkPermissionAndUnqueue(this.remoteHost))
-			return;
-
-		try {
-			launchSessionProcess();
-		} catch (IOException e) {
-			System.err.println("Error launching Hub->Node session:"+e.getMessage());
-			return;
-		}
-
-		try {
-			launchLogger();
-		} catch (SecurityException|IOException e) {
-			System.err.println("Error launching logger:"+e.getMessage());
-			return;
-		}
-
-		BufferedReader hostSessionReader = new BufferedReader(new InputStreamReader(this.auditingHubToNodeSessionProcess.getInputStream()));
-		BufferedWriter hostSessionWriter = new BufferedWriter(new OutputStreamWriter(this.auditingHubToNodeSessionProcess.getOutputStream()));
-
-		System.out.println("Session created. Sending prompt to admin...");
-		this.promptString = String.format("[%s]>", userAndHost);
-
-
-		try {
-			//The command must be put in "". Otherwise, the console will fail to run the echo. Also, the "" must be escaped.
-			hostSessionWriter.write("echo " + "\"" + this.promptString + "\"");
-			hostSessionWriter.newLine();
-			hostSessionWriter.flush();
-		} catch (IOException e) {
-			System.err.println("Error on first prompt:"+e.getMessage());
-			return;
-		}
-
-
-		StringBuilder hostCompleteResponseBuilder = new StringBuilder();
-
-
-		String hostInput = null;
-		String hostOutput = null;
-
-
-		while (true){
-			System.out.println("Now waiting for remote node...");
-			try {
-				while ((hostOutput = hostSessionReader.readLine()) != null){
-
-					System.out.println("Line read:" + hostOutput);
-					adminSessionWriter.write(hostOutput);
-					adminSessionWriter.newLine();
-
-					if(!hostOutput.equals(this.promptString)){
-						hostCompleteResponseBuilder.append(hostOutput+System.lineSeparator());
-						continue;
-					}
-					else{
-						break;
-					}
+		if(splittedRequest.equals(Messages.MANAGE)){
+			if(!this.auditingHubInstance.checkPermissionAndUnqueue(this.remoteHost)){
+				this.adminUserName = splittedRequest[1];
+				this.remoteHost = splittedRequest[2];
+				try {
+					launchManagementSession();
+				} catch (IOException e) {
+					System.err.println("Failed to launch management session:" + e.getMessage());
 				}
-				adminSessionWriter.flush();
-
-			} catch (IOException e) {
-				System.err.println(e.getMessage());
 				return;
 			}
+		}
 
-
-			this.logger.log(Level.ALL, "Host->Admin:\n"+hostCompleteResponseBuilder.toString());
-			hostCompleteResponseBuilder.setLength(0);
-
-			System.out.println("Now waiting for admin...");
-			try {
-				hostInput = adminSessionReader.readLine();
-				hostSessionWriter.write(hostInput+"; echo " + "\"" + this.promptString + "\"");
-				hostSessionWriter.newLine();
-				hostSessionWriter.flush();
-			} catch (IOException e) {
-				System.err.println(e.getMessage());
-				return;
-			}
-
-
-			this.logger.log(Level.ALL, "Admin->Host:"+hostInput);
-
-
+		try {
+			adminSessionWriter.write(Messages.ERROR);
+			adminSessionWriter.newLine();
+			adminSessionWriter.flush();
+		} catch (IOException e) {
+			System.err.println("Failed to signal failed session start to admin:" + e.getMessage());
 		}
 
 	}
+
+
 }

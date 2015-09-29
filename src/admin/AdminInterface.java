@@ -104,7 +104,7 @@ public class AdminInterface {
 		}
 			
 		boolean syncMessResult = false;
-		String manageRequestString = String.format("%s %s@%s", Messages.MANAGE,this.userName,this.remoteHost);
+		String manageRequestString = String.format("%s %s %s", Messages.MANAGE,this.userName,this.remoteHost);
 		try {
 			syncMessResult = sendSyncMessageAndGetResponse(manageRequestString);
 		} catch (IOException | InvalidMessageException e) {
@@ -170,7 +170,7 @@ public class AdminInterface {
 
 	public static void main(String[] args){
 
-		AdminInterface ai;
+		AdminInterface aI;
 
 		String userName;
 		String hubHost;
@@ -183,8 +183,8 @@ public class AdminInterface {
 			hubHost=args[HUB_FLAG_INDEX+1];
 			remoteHost=args[HOST_FLAG_INDEX+1];
 			key = args[ADMIN_KEY_INDEX+1];
-			ai = new AdminInterface(userName, hubHost, remoteHost, key);
-			ai.manageNode();
+			aI = new AdminInterface(userName, hubHost, remoteHost, key);
+			aI.manageNode();
 			break;
 		default:
 			System.out.println("Usage: AdminInterface -a hub -h host -u userName -k key");

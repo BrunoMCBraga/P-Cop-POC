@@ -175,7 +175,7 @@ public class DevelopersRequestsHandler implements Runnable {
 		}
 	}
 
-
+	//TODO: Maybe create threads to answer clients in parallel.
 	@Override
 	public void run() {
 
