@@ -12,6 +12,8 @@ import java.net.SocketImpl;
 import java.net.UnknownHostException;
 
 import auditinghub.AdminSession;
+import developer.DeveloperInterface;
+import exceptions.InvalidMessageException;
 import global.Messages;
 import global.Ports;
 
@@ -27,83 +29,83 @@ import global.Ports;
  * */
 
 public class NodeGuard {
-	
-	public static void main(String[] args){
-		
-		System.out.println("Started Node Guard");
-		if(args.length != 2){
-			System.err.println("NodeGuard -m monitorHostName");
-			System.exit(1);
-		}
-		
-		Socket monitorSocket = null;
-		try {
-			monitorSocket = new Socket(args[1],Ports.MONITOR_MINION_PORT);
-		} catch (NumberFormatException|IOException e) {
-			System.err.println("Error on socket creation and connection:"+e.getMessage());
-			System.exit(1);
-		}
-		BufferedReader monitorSessionReader = null;
-		BufferedWriter monitorSessionWriter = null;
-		try {
-			monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
-			monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
-		} catch (IOException e) {
-			System.err.println("Error on obtaining reader/writer:"+e.getMessage());
-			System.exit(1);
-		}
-		
-		//sending control message
-		try {
-			monitorSessionWriter.write(Messages.REGISTER);
-			monitorSessionWriter.newLine();
-			monitorSessionWriter.flush();
-		} catch (IOException e) {
-			System.err.println("Error on sending hello:"+e.getMessage());
-			System.exit(1);
-		}
+	private static final int MONITOR_HOST_FLAG_INDEX=0;
+	private String monitorHost;
 
-		
-		String monitorResponse = null; 
-		
-		
-		try {
-			monitorResponse = monitorSessionReader.readLine();
-		} catch (IOException e) {
-			System.err.println("Error on receiving bye:"+e.getMessage());
-			System.exit(1);
-		}
-		if(!monitorResponse.equals(Messages.OK))
-		{
-			System.err.println("Error on synchronizing with master. Expected:" + Messages.OK + " Received:"+monitorResponse);
-			System.exit(1);
-		}
-		
-		System.out.println("Registered successfully.");
-		
-		ServerSocket monitorControlServerSocket = null;
-		ServerSocket hubControlServerSocket = null;
-
-		try {
-			monitorControlServerSocket = new ServerSocket(Ports.MINION_MONITOR_PORT);
-			hubControlServerSocket = new ServerSocket(Ports.MINION_HUB_PORT);
-		} catch (IOException e) {
-			System.err.println("Error on creating server sockets:"+e.getMessage());
-			System.exit(1);
-		}
-		
-		new Thread(new MonitorRequestsHandler(monitorControlServerSocket)).start();
-		new Thread(new LoggersRequestsHandler(hubControlServerSocket)).start();
-		
-
-		while(true){
-			
-		}
-		
-		
-		
-	
+	public NodeGuard(String monitorHost){
+		this.monitorHost = monitorHost;
 	}
-	
+
+	private boolean startMonitorHandler() throws UnknownHostException, IOException, InvalidMessageException {
+
+		Socket monitorSocket = new Socket(this.monitorHost,Ports.MONITOR_MINION_PORT);
+
+		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
+		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
+		
+		monitorSessionWriter.write(Messages.REGISTER);
+		monitorSessionWriter.newLine();
+		monitorSessionWriter.flush();
+
+
+
+		String monitorResponse = monitorSessionReader.readLine();
+		
+		if(monitorResponse.equals(Messages.OK)){
+			new Thread(new MonitorRequestsHandler()).start();
+			return true;
+		}
+		else if(monitorResponse.equals(Messages.ERROR))
+			return false;
+		else throw new InvalidMessageException("Invalide response:" + monitorResponse);
+		
+
+	}
+
+
+	private boolean startHubHandler() throws IOException {
+		new Thread(new HubRequestsHandler()).start();
+		return true;
+	}
+
+
+	public static void main(String[] args){
+
+		System.out.println("Started Node Guard");
+
+		String monitorHost;
+		NodeGuard nodeGuard;
+		boolean handlersStartResult = true;
+
+		switch(args.length){
+		case 2:
+			monitorHost = args[MONITOR_HOST_FLAG_INDEX+1];
+			nodeGuard = new NodeGuard(monitorHost);
+			
+			try {
+				handlersStartResult &= nodeGuard.startMonitorHandler();
+				handlersStartResult &= nodeGuard.startHubHandler();
+			} catch (IOException | InvalidMessageException e) {
+				System.err.println("Failed to begin server processes:" + e.getMessage());
+				System.exit(1);
+			}
+			break;
+		default:
+			System.err.println("NodeGuard -m monitorHostName");
+			System.exit(0);
+			break;
+
+		}
+
+		if(handlersStartResult)
+			try {
+				Thread.currentThread().wait();
+			} catch (InterruptedException e) {
+				System.exit(0);
+			}
+
+		
+	}
+
 }

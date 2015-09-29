@@ -13,6 +13,7 @@ import java.util.List;
 
 import global.Directories;
 import global.Messages;
+import global.Ports;
 import monitor.Minion;
 
 /*
@@ -25,8 +26,8 @@ public class MonitorRequestsHandler implements Runnable {
 
 	private ServerSocket monitorServerSocket;
 	
-	public MonitorRequestsHandler(ServerSocket monitorServerSocket) {
-		this.monitorServerSocket = monitorServerSocket;
+	public MonitorRequestsHandler() throws IOException {
+		this.monitorServerSocket = new ServerSocket(Ports.MINION_MONITOR_PORT);;
 	}
 	
 	private boolean deployApp(String appId) throws IOException, InterruptedException{

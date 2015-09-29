@@ -9,18 +9,19 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 import global.Messages;
+import global.Ports;
 
 /*
  * Receives migration requests: MIGRATE APP NEW_NODE
  * */
 
-public class LoggersRequestsHandler implements Runnable {
+public class HubRequestsHandler implements Runnable {
 
 
 	private ServerSocket loggerControlSocket;
 
-	public LoggersRequestsHandler(ServerSocket loggerControlSocket) {
-		this.loggerControlSocket = loggerControlSocket;
+	public HubRequestsHandler() throws IOException {
+		this.loggerControlSocket = new ServerSocket(Ports.MINION_HUB_PORT);;
 	}
 	
 	
