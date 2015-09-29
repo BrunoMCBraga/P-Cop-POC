@@ -56,7 +56,7 @@ public class DeveloperInterface {
 
 	}
 
-	private boolean sendMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException{
+	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException{
 
 		Socket monitorSocket = new Socket(this.monitorHost, Ports.MONITOR_DEVELOPER_PORT);
 		BufferedReader monitorReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
@@ -80,7 +80,7 @@ public class DeveloperInterface {
 		Path appPath = FileSystems.getDefault().getPath(appDir);
 		boolean messageResult = false;
 		try {
-			messageResult = sendMessageAndGetResponse(String.format("%s %s %s", Messages.DELETE_APP,this.userName,appPath.getFileName().toString()));
+			messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.DELETE_APP,this.userName,appPath.getFileName().toString()));
 		} catch (IOException | InvalidMessageException e) {
 			System.err.println("Error when notifying monitor:" + e.getMessage());
 			System.exit(1);
@@ -135,7 +135,7 @@ public class DeveloperInterface {
 		Path appPath = FileSystems.getDefault().getPath(this.appDir);
 		boolean messageResult = false;
 		try {
-			messageResult = sendMessageAndGetResponse(String.format("%s %s %s %s", Messages.NEW_APP,this.userName, appPath.getFileName(),this.instances));
+			messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s %s", Messages.NEW_APP,this.userName, appPath.getFileName(),this.instances));
 		//TODO:Differentiate. In case notification fails, there should be a rollback. 
 		} catch (IOException | InvalidMessageException e) {
 			System.err.println("Error when notifying monitor:" + e.getMessage());
@@ -183,8 +183,8 @@ public class DeveloperInterface {
 			break;
 
 		}
-
-
+		
+		System.exit(0);
 
 	}
 }

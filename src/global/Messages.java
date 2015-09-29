@@ -28,6 +28,9 @@ public class Messages {
 	public static final String DELETE_APP = "DELETE_APP";
 
 
+	public static final String MANAGE = "MANAGE";
+
+
 
 
 
