@@ -22,153 +22,158 @@ import monitor.Minion;
  *-
  * */
 //TODO:Turn this into a task if necessary
+//TODO:Thread pools
 public class MonitorRequestsHandler implements Runnable {
 
 	private ServerSocket monitorServerSocket;
-	
+
 	public MonitorRequestsHandler() throws IOException {
 		this.monitorServerSocket = new ServerSocket(Ports.MINION_MONITOR_PORT);;
 	}
-	
+
 	private boolean deployApp(String appId) throws IOException, InterruptedException{
-		
-		String dockerAppName=appId.toLowerCase();
-		
-		String createContainerCommand = String.format("sudo docker build -t %s-container ../../%s%s",dockerAppName,Directories.APPS_DIR,appId);
-		String deployContainerCommand = String.format("sudo docker run -p 80 -d --name %s %s-container",dockerAppName,dockerAppName);
-		
-		
+
+		String createContainerCommand = String.format("sudo docker build -t %s-container ../../%s%s",appId,Directories.APPS_DIR,appId);
+		String deployContainerCommand = String.format("sudo docker run -p 80 -d --name %s %s-container",appId,appId);
+
+
 		String[]  createContainerCommandArray = createContainerCommand.split(" ");
 		String[]  deployContainerCommandArray = deployContainerCommand.split(" ");
 
-		
+
 		ProcessBuilder createConainerProcessBuilder = new ProcessBuilder(createContainerCommandArray);
 		Process createContainerProcess = createConainerProcessBuilder.start();
-		int createContainerResult = createContainerProcess.waitFor();
-		if (createContainerResult != 0){
-			//Not sure why but the process runs but returns an abnormal value...
-			System.out.println("Create container process returned with abnormal value (" + createContainerResult +") . Try again later.");
-			//System.exit(1);
+		int processResult = createContainerProcess.waitFor();
+		if (processResult != 0){
+			return false;
 		}
 		ProcessBuilder deployConainerProcessBuilder = new ProcessBuilder(deployContainerCommandArray);
-		deployConainerProcessBuilder.redirectOutput(new File("Out.txt"));
-		deployConainerProcessBuilder.redirectError(new File("Err.txt"));
 		Process deployProcess = deployConainerProcessBuilder.start();
+		processResult += deployProcess.waitFor();
 
-		//int deployContainerResult = deployProcess.waitFor();
-		//if (deployContainerResult != 0){
-			//Not sure why but the process runs but returns an abnormal value...
-			//System.out.println("Deploy container process returned with abnormal value (" + deployContainerResult +") . Try again later.");
-			//System.exit(1);
-		//}
-		return createContainerResult==0?true:false;
+		return processResult==0?true:false;
 	}
-	
+
 	private boolean deleteApp(String appId) throws IOException, InterruptedException {
-		
-		String dockerAppName=appId.toLowerCase();
-		
+
 		String deleteAppCommand = String.format("sudo ../DeleteApp.sh " + appId);
-		
-		
 		String[]  deleteAppCommandArray = deleteAppCommand.split(" ");
 
-		
-		ProcessBuilder deleteAppProcessBuilder = new ProcessBuilder(deleteAppCommandArray);
-		deleteAppProcessBuilder.redirectError(new File("Err.txt"));
-		deleteAppProcessBuilder.redirectOutput(new File("out.txt"));
 
+		ProcessBuilder deleteAppProcessBuilder = new ProcessBuilder(deleteAppCommandArray);
 		Process deleteAppCommandProcess = deleteAppProcessBuilder.start();
+
 		int deleteContainerResult = deleteAppCommandProcess.waitFor();
 		if (deleteContainerResult != 0){
-			//Not sure why but the process runs but returns an abnormal value...
-			System.out.println("Delete container process returned with abnormal value (" + deleteContainerResult +") . Try again later.");
-			//System.exit(1);
+			return false;
 		}
-		
-		return deleteContainerResult==0?true:false;
-	}
-	
-	private void processMonitorRequest(Socket monitorSocket) throws IOException{
-		BufferedReader socketReader = null; 
-		BufferedWriter socketWriter = null;
-		
-		
-		socketReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
-		socketWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
-		
-		String monitorRequest= socketReader.readLine();
-		String[] splittedRequest = monitorRequest.split(" ");
-		boolean commandResult = false;
-		if(splittedRequest[0].equals(Messages.DEPLOY)){
-			System.out.println("Deploying:" + splittedRequest[1]);
-			try {
-				commandResult = deployApp(splittedRequest[1]);
-			} catch (InterruptedException e) {
-				System.err.println("Unable to deploy:"+splittedRequest[1]);
-			}
-			if(commandResult)
-				System.out.println("Deployed successfully");
-			socketWriter.write(Messages.OK);
-			socketWriter.newLine();
-			socketWriter.flush();
-			return;
-		}
-		
-		if(splittedRequest[0].equals(Messages.DELETE)){
-			System.out.println("Deleting" + splittedRequest[1]);
-			try {
-				commandResult = deleteApp(splittedRequest[1]);
-			} catch (InterruptedException e) {
-				System.err.println("Unable to delete:"+splittedRequest[1]);
 
-			}
-			
-			if(commandResult)
-				System.out.println("Deleted successfully");
-			socketWriter.write(Messages.OK);
-			socketWriter.newLine();
-			socketWriter.flush();
-			return;
-		}
-		
-		
-	
+		return true;
 	}
-	
 
 	@Override
 	public void run() {
-		
+
 		Socket monitorSocket = null;
-		
+
 		while(true){
-			
+
 			try {
 				monitorSocket = monitorServerSocket.accept();
 			} catch (IOException e) {
 				System.err.println("Error while accepting master connection:" + e.getMessage());
-				try {
-					monitorSocket.close();
-					monitorServerSocket.close();
-				} catch (IOException e1) {
-				}
-				System.exit(1);
+				continue;
 			}
+
+			BufferedReader socketReader = null; 
+			BufferedWriter socketWriter = null;
 			try {
+				socketReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
+				socketWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
+
+			} catch (IOException e) {
+				System.err.println("Error while retrieving streams:" + e.getMessage());
+				continue;
+			}
+
+			String monitorRequest = null;
+
+			try {
+				socketReader.readLine();
+			} catch (IOException e) {
+				System.err.println("Error while retrieving sync message:" + e.getMessage());
+				continue;
+			}
+
+			String[] splittedRequest = monitorRequest.split(" ");
+			boolean requestResult = false;
+
+			switch(splittedRequest[0]){
+			case Messages.DEPLOY:
+				System.out.println("Deploying:" + splittedRequest[1]);
+				try {
+					requestResult = deployApp(splittedRequest[1]);
+				} catch (InterruptedException | IOException e) {
+					System.err.println("Unable to deploy:" + e.getMessage());
+				}
+
+				break;
+
+			case Messages.DELETE:
+				System.out.println("Deleting:" + splittedRequest[1]);
+				try {
+					requestResult = deleteApp(splittedRequest[1]);
+				} catch (InterruptedException | IOException e) {
+					System.err.println("Unable to delete:"+splittedRequest[1]);
+				}
+				break;
+
+			
+
+			}
+
+			if(requestResult){
+				System.out.println("Success");
+				try {
+					socketWriter.write(Messages.OK);
+					socketWriter.newLine();
+					socketWriter.flush();
+				} catch (IOException e) {
+					System.err.println("Failed to send OK:" + e.getMessage());
+				}
+			}
+			else{
+				System.out.println("Failed");
+
+				try {
+					socketWriter.write(Messages.ERROR);
+					socketWriter.newLine();
+					socketWriter.flush();
+				} catch (IOException e) {
+					System.err.println("Failed to send ERROR:" + e.getMessage());
+				}
+			}
+		}
+
+
+
+
+
+		/*try {
 				processMonitorRequest(monitorSocket);
 				monitorSocket.close();
 			} catch (IOException e) {
 				System.err.println("Error while processing monitor request:"+e.getMessage());
 				System.exit(1);
 
-			}
-			
-		}
-		
+			}*/
+
+
+
 	}
-	
-	
-	
-	
+
+
+
+
+
 }

@@ -21,55 +21,103 @@ public class HubRequestsHandler implements Runnable {
 	private ServerSocket loggerControlSocket;
 
 	public HubRequestsHandler() throws IOException {
-		this.loggerControlSocket = new ServerSocket(Ports.MINION_HUB_PORT);;
+		this.loggerControlSocket = new ServerSocket(Ports.MINION_HUB_PORT);
 	}
 	
 	
-	private void processMonitorRequest(Socket monitorSocket) throws IOException{
-		BufferedReader socketReader = null; 
-		BufferedWriter socketWriter = null;
-		
-		
-		socketReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
-		socketWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
-		
-		String monitorRequest= socketReader.readLine();
-		String[] splittedRequest = monitorRequest.split(" ");
-		if(splittedRequest[0].equals(Messages.MIGRATE))
-			System.out.println(String.format("Migrating:%s->%s",splittedRequest[1],splittedRequest[2]));
-		
-		socketWriter.write(Messages.OK);
-		socketWriter.newLine();
-		socketWriter.flush();
-		
+	private boolean purgeMinion() throws IOException, InterruptedException {
+		//TODO:put scripts as consts
+		String purgeMinionCommand = String.format("sudo ../PurgeMinion.sh");
+		String[]  purgeMinionCommandArray = purgeMinionCommand.split(" ");
+
+
+		ProcessBuilder purgeMinionProcessBuilder = new ProcessBuilder(purgeMinionCommandArray);
+		Process deleteAppCommandProcess = purgeMinionProcessBuilder.start();
+
+		int deleteContainerResult = deleteAppCommandProcess.waitFor();
+		if (deleteContainerResult != 0){
+			return false;
+		}
+
+		return true;
 	}
+	
+	
 	
 
 	@Override
 	public void run() {
 
-		Socket loggerSocket = null;
+		Socket hubSocket = null;
+		
+		BufferedReader socketReader = null; 
+		BufferedWriter socketWriter = null;
+		
+		
 
 		while(true){
 
 			try {
-				loggerSocket = loggerControlSocket.accept();
+				hubSocket = loggerControlSocket.accept();
 			} catch (IOException e) {
 				System.err.println("Error while accepting logger connection:" + e.getMessage());
-				try {
-					loggerSocket.close();
-					loggerControlSocket.close();
-				} catch (IOException e1) {
-				}
-				System.exit(1);
+				continue;
 			}
+			
 			try {
-				processMonitorRequest(loggerSocket);
-				loggerSocket.close();
+				socketReader = new BufferedReader(new InputStreamReader(hubSocket.getInputStream()));
+				socketWriter = new BufferedWriter(new OutputStreamWriter(hubSocket.getOutputStream()));
 			} catch (IOException e) {
-				System.err.println("Error while processing logger request:"+e.getMessage());
-				System.exit(1);
+				System.err.println("Unable to retrieve socket stream:" + e.getMessage());
+			}
+			
+			String monitorRequest= null; 
+			
+			try {
+				socketReader.readLine();
+			} catch (IOException e) {
+				System.err.println("Failed to read sync line:" + e.getMessage());
+				continue;
+			}
+			
+			String[] splittedRequest = monitorRequest.split(" ");
+			boolean requestResult = false;
 
+			
+			switch(splittedRequest[0]){
+			case Messages.PURGE:
+				System.out.println("Purging");
+				try {
+					requestResult = purgeMinion();
+					//TODO:Interrupted exception should not count as an error...??
+				} catch (IOException | InterruptedException e) {
+					System.err.println("Unable to purge");
+
+				}
+				break;
+			
+			}
+							
+			if(requestResult){
+				System.out.println("Success");
+				try {
+					socketWriter.write(Messages.OK);
+					socketWriter.newLine();
+					socketWriter.flush();
+				} catch (IOException e) {
+					System.err.println("Failed to send OK:" + e.getMessage());
+				}
+			}
+			else{
+				System.out.println("Failed");
+
+				try {
+					socketWriter.write(Messages.ERROR);
+					socketWriter.newLine();
+					socketWriter.flush();
+				} catch (IOException e) {
+					System.err.println("Failed to send ERROR:" + e.getMessage());
+				}
 			}
 
 		}		

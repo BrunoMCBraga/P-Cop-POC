@@ -90,7 +90,7 @@ public class AuditingHub {
 		while(true){
 			newSessionSocket = hubServerSocket.accept();
 			System.out.println("Connection from:" + newSessionSocket.getRemoteSocketAddress());
-			sessionThread = new Thread(new AdminSession(aH, newSessionSocket));
+			sessionThread = new Thread(new AdminSessionRequestHandler(aH, newSessionSocket));
 			aH.temporaryThreads.put(sessionThread.getId(), sessionThread);
 			sessionThread.start();
 		}

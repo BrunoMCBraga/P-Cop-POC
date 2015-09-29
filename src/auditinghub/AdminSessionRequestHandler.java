@@ -16,11 +16,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import exceptions.InvalidMessageException;
 import global.Messages;
+import global.Ports;
 import global.ProcessBinaries;
 
 //TODO:Detect mistyping errors. Since the session is not interactive, erros seem not to be being sent.
-public class AdminSession implements Runnable {
+public class AdminSessionRequestHandler implements Runnable {
 
 	private static final String UNCOMMITED_LOGS_DIR="Logs/Uncommited/";
 
@@ -36,7 +38,7 @@ public class AdminSession implements Runnable {
 	private Logger logger;
 
 
-	public AdminSession(AuditingHub auditingHubInstance,Socket adminToHubSocket){
+	public AdminSessionRequestHandler(AuditingHub auditingHubInstance,Socket adminToHubSocket){
 
 		this.auditingHubInstance = auditingHubInstance;
 		this.adminToHubSocket = adminToHubSocket;
@@ -87,9 +89,29 @@ public class AdminSession implements Runnable {
 	}
 
 
-	private boolean launchManagementSession() throws IOException {
+	private boolean launchManagementSession() throws IOException, InvalidMessageException {
 
-		launchSessionProcess();
+		Socket minionSocket = new Socket(this.remoteHost, Ports.MINION_HUB_PORT);
+		BufferedReader minionSessionReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
+		BufferedWriter minionSessionWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
+		
+		minionSessionWriter.write(Messages.PURGE);
+		minionSessionWriter.newLine();
+		minionSessionWriter.flush();
+		
+		String response = minionSessionReader.readLine();
+		switch (response) {
+		case Messages.OK:
+			System.out.println("Successful purge.");
+			break;
+		case Messages.ERROR:
+			return false;
+		default:
+			throw new InvalidMessageException("Unexpected sync value:" + response);
+		}
+		
+		
+		launchSessionProcess();///TODO:catch exceptions here/...
 		launchLogger();
 
 		BufferedReader adminSessionReader = new BufferedReader(new InputStreamReader(adminToHubSocket.getInputStream()));
@@ -122,7 +144,7 @@ public class AdminSession implements Runnable {
 
 				if(!hostOutput.equals(this.promptString))
 					continue;
-				
+
 			} catch (IOException e) {
 				System.err.println("Failed to bridge Host->Admin:" + e.getMessage());
 				continue; //TODO:Think this through
@@ -144,7 +166,7 @@ public class AdminSession implements Runnable {
 
 
 			this.logger.log(Level.ALL, "Admin->Host:"+hostInput);
-
+			//TODO:Return...
 
 		}
 
@@ -173,19 +195,23 @@ public class AdminSession implements Runnable {
 
 		String[] splittedRequest = adminRequest.split(" ");
 
-		if(splittedRequest.equals(Messages.MANAGE)){
+		switch(splittedRequest[0]){
+		case Messages.MANAGE: {
+			//TODO:PURGE before entering...
+			
 			if(!this.auditingHubInstance.checkPermissionAndUnqueue(this.remoteHost)){
 				this.adminUserName = splittedRequest[1];
 				this.remoteHost = splittedRequest[2];
 				try {
 					launchManagementSession();
-				} catch (IOException e) {
+				} catch (IOException | InvalidMessageException e) {
 					System.err.println("Failed to launch management session:" + e.getMessage());
 				}
-				return;
+				return; //TODO:default
 			}
 		}
 
+		}
 		try {
 			adminSessionWriter.write(Messages.ERROR);
 			adminSessionWriter.newLine();

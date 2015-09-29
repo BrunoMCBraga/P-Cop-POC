@@ -11,7 +11,7 @@ import java.net.Socket;
 import java.net.SocketImpl;
 import java.net.UnknownHostException;
 
-import auditinghub.AdminSession;
+import auditinghub.AdminSessionRequestHandler;
 import developer.DeveloperInterface;
 import exceptions.InvalidMessageException;
 import global.Messages;

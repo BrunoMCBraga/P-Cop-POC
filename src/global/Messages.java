@@ -11,15 +11,16 @@ public class Messages {
 	public static final String ERROR = "ERROR";
 
 	
-	//Loggers->Minions
-	public static final String MIGRATE = "MIGRATE";
+	//Hubs->Minions
+	public static final String PURGE = "PURGE";
+
 	
 	//Monitor->Minions
 	public static final String DEPLOY="DEPLOY";
 	public static final String DELETE="DELETE";
 
 
-	//Loggers->Monitor
+	//Hubs->Monitor
 	public static final String SET_TRUSTED = "SET_TRUSTED";
 	public static final String SET_UNTRUSTED = "SET_UNTRUSTED";
 	
@@ -28,7 +29,11 @@ public class Messages {
 	public static final String DELETE_APP = "DELETE_APP";
 
 
+	//Admin->Hub
 	public static final String MANAGE = "MANAGE";
+
+
+
 
 
 
