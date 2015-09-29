@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
+import global.Directories;
 import global.Messages;
 import monitor.Minion;
 
@@ -32,7 +33,7 @@ public class MonitorRequestsHandler implements Runnable {
 		
 		String dockerAppName=appId.toLowerCase();
 		
-		String createContainerCommand = String.format("sudo docker build -t %s-container ../../%s",dockerAppName,appId);
+		String createContainerCommand = String.format("sudo docker build -t %s-container ../../%s%s",dockerAppName,Directories.APPS_DIR,appId);
 		String deployContainerCommand = String.format("sudo docker run -p 80 -d --name %s %s-container",dockerAppName,dockerAppName);
 		
 		

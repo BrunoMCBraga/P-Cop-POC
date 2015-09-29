@@ -16,6 +16,7 @@ import javax.net.ssl.SSLHandshakeException;
 
 import exceptions.InsufficientMinions;
 import global.Ports;
+import global.Directories;
 import global.Messages;
 
 public class DevelopersRequestsHandler implements Runnable {
@@ -37,7 +38,7 @@ public class DevelopersRequestsHandler implements Runnable {
 
 	private boolean sendApp(Minion minion, String appDir) throws IOException, InterruptedException{
 
-		String scpArgs = String.format("-r -i %s -oStrictHostKeyChecking=no  ~/%s %s@%s:~",sshKey, appDir,userName,minion.getIpAddress());
+		String scpArgs = String.format("-r -i %s -oStrictHostKeyChecking=no  ~/%s %s@%s:%s%s",sshKey, appDir,userName,minion.getIpAddress(),Directories.APPS_DIR,appDir);
 		String[] scpArgsArray = scpArgs.split(" ");
 		List<String> finalCommand = new ArrayList<String>(scpArgsArray.length+1);
 		finalCommand.add(SCP_DIR);

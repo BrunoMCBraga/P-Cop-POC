@@ -8,6 +8,8 @@ public class Messages {
 	
 	//General ACK
 	public static final String OK = "OK";
+	public static final String ERROR = "ERROR";
+
 	
 	//Loggers->Minions
 	public static final String MIGRATE = "MIGRATE";
