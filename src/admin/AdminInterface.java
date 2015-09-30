@@ -37,6 +37,7 @@ public class AdminInterface {
 	private String remoteHost;
 	private String key;
 	private Socket hubSocket;
+	private Process proxyProcess;
 
 	public AdminInterface(String userName, String hubHost, String remoteHost, String key){
 		this.userName = userName;
@@ -57,7 +58,8 @@ public class AdminInterface {
 			finalCommand.add(arg);
 
 		ProcessBuilder sshSessionBuilder = new ProcessBuilder(finalCommand);
-		Process proxyProcess = sshSessionBuilder.start();
+		this.proxyProcess = sshSessionBuilder.start();
+	
 
 		int processResult = proxyProcess.waitFor();
 		if (processResult != 0){
@@ -94,7 +96,7 @@ public class AdminInterface {
 		switch(response){
 		case Messages.OK:
 			System.out.println("Success on requesting managemend session.");
-			Runtime.getRuntime().addShutdownHook(new Thread(new CTRLCHandler(this.hubSocket)));
+			Runtime.getRuntime().addShutdownHook(new Thread(new CTRLCHandler(this.hubSocket,this.proxyProcess)));
 			break;
 		case Messages.ERROR:
 			return false;
@@ -131,7 +133,7 @@ public class AdminInterface {
 			try {
 				hostInput = promptReader.readLine();
 				if(hostInput.equals(EXIT_COMMAND)){
-					new Thread(new CTRLCHandler(hubSocket)).start();
+					new Thread(new CTRLCHandler(this.hubSocket,this.proxyProcess)).start();
 					break;
 				}
 				adminSessionWriter.write(hostInput);

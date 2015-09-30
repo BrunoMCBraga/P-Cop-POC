@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -21,7 +22,7 @@ import global.Messages;
 import global.Ports;
 import global.ProcessBinaries;
 
-//TODO:Detect mistyping errors. Since the session is not interactive, erros seem not to be being sent.
+//TODO:Detect mistyping errors. Since the session is not interactive, errors seem not to be being sent.
 public class AdminSessionRequestHandler implements Runnable {
 
 	private static final String UNCOMMITED_LOGS_DIR="Logs/Uncommited/";
@@ -38,13 +39,15 @@ public class AdminSessionRequestHandler implements Runnable {
 	private Logger logger;
 
 
-	public AdminSessionRequestHandler(AuditingHub auditingHubInstance,Socket adminToHubSocket){
+	public AdminSessionRequestHandler(AuditingHub auditingHubInstance,Socket adminToHubSocket, String adminUserName,String remoteHost){
 
 		this.auditingHubInstance = auditingHubInstance;
 		this.adminToHubSocket = adminToHubSocket;
+		this.adminUserName = adminUserName;
+		this.remoteHost = remoteHost;
+
 		this.hubUserName = auditingHubInstance.getHubUserName();
 		this.hubKey = auditingHubInstance.getHubKey();
-
 
 	}
 
@@ -90,6 +93,25 @@ public class AdminSessionRequestHandler implements Runnable {
 
 
 	private boolean launchManagementSession() throws IOException, InvalidMessageException {
+		
+		Socket monitorSocket = new Socket(this.remoteHost, Ports.MONITOR_HUB_PORT);
+		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
+		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
+		
+		monitorSessionWriter.write(String.format("%s %s", Messages.SET_UNTRUSTED, InetAddress.getByName(this.remoteHost)));
+		monitorSessionWriter.newLine();
+		monitorSessionWriter.flush();
+
+		String monitorResponse = monitorSessionReader.readLine();
+		switch (monitorResponse) {
+		case Messages.OK:
+			System.out.println("Successful migration.");
+			break;
+		case Messages.ERROR:
+			return false;
+		default:
+			throw new InvalidMessageException("Unexpected sync value from monitor:" + monitorResponse);
+		}
 
 		Socket minionSocket = new Socket(this.remoteHost, Ports.MINION_HUB_PORT);
 		BufferedReader minionSessionReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
@@ -98,19 +120,19 @@ public class AdminSessionRequestHandler implements Runnable {
 		minionSessionWriter.write(Messages.PURGE);
 		minionSessionWriter.newLine();
 		minionSessionWriter.flush();
-		
-		String response = minionSessionReader.readLine();
-		switch (response) {
+
+		String minionResponse = minionSessionReader.readLine();
+		switch (minionResponse) {
 		case Messages.OK:
 			System.out.println("Successful purge.");
 			break;
 		case Messages.ERROR:
 			return false;
 		default:
-			throw new InvalidMessageException("Unexpected sync value:" + response);
+			throw new InvalidMessageException("Unexpected sync value from minion:" + minionResponse);
 		}
 		
-		
+
 		launchSessionProcess();///TODO:catch exceptions here/...
 		launchLogger();
 
@@ -156,6 +178,13 @@ public class AdminSessionRequestHandler implements Runnable {
 
 			try {
 				hostInput = adminSessionReader.readLine();
+				//1.delete process.2.delete active session from maps.
+				if(hostInput.equals(Messages.MANAGE_TEARDOWN))
+				{
+					this.auditingHubToNodeSessionProcess.destroy();
+					this.auditingHubInstance.removeSession(this.remoteHost);
+					return true;
+				}
 				hostSessionWriter.write(hostInput+"; echo " + "\"" + this.promptString + "\"");
 				hostSessionWriter.newLine();
 				hostSessionWriter.flush();
@@ -178,8 +207,8 @@ public class AdminSessionRequestHandler implements Runnable {
 		BufferedReader adminSessionReader;
 		BufferedWriter adminSessionWriter;
 		try {
-			adminSessionReader = new BufferedReader(new InputStreamReader(adminToHubSocket.getInputStream()));
-			adminSessionWriter = new BufferedWriter(new OutputStreamWriter(adminToHubSocket.getOutputStream()));
+			adminSessionReader = new BufferedReader(new InputStreamReader(this.adminToHubSocket.getInputStream()));
+			adminSessionWriter = new BufferedWriter(new OutputStreamWriter(this.adminToHubSocket.getOutputStream()));
 		} catch (IOException e) {
 			System.err.println("Error obtaining admin session streams:" + e.getMessage());
 			return;
@@ -193,31 +222,41 @@ public class AdminSessionRequestHandler implements Runnable {
 			return;
 		} 
 
-		String[] splittedRequest = adminRequest.split(" ");
 
-		switch(splittedRequest[0]){
-		case Messages.MANAGE: {
-			//TODO:PURGE before entering...
-			
-			if(!this.auditingHubInstance.checkPermissionAndUnqueue(this.remoteHost)){
-				this.adminUserName = splittedRequest[1];
-				this.remoteHost = splittedRequest[2];
+		//TODO:PURGE before entering...
+		//TODO:if writes fail, session lists may be outdated
+		boolean launchManagementSessionResult = false;
+		if(this.auditingHubInstance.checkPermissionAndUnqueue(this.remoteHost)){
+			try {
 				try {
-					launchManagementSession();
-				} catch (IOException | InvalidMessageException e) {
-					System.err.println("Failed to launch management session:" + e.getMessage());
+					adminSessionWriter.write(Messages.OK);
+					adminSessionWriter.newLine();
+					adminSessionWriter.flush();
+				} catch (IOException e) {
+					System.err.println("Failed to signal OK for session start to admin:" + e.getMessage());
+					this.adminToHubSocket.close();
+					return;
 				}
-				return; //TODO:default
+				//I assume that this method will not fail. Otherwise the admin must be notified also.
+				//It returns true if session is ended orderly and false if the other nodes do not respond properly...
+				launchManagementSessionResult = launchManagementSession();
+			} catch (IOException | InvalidMessageException e) {
+				System.err.println("Failed to launch management session:" + e.getMessage());
+				try {
+					this.adminToHubSocket.close();
+				} catch (IOException e1) {
+				
+				}
 			}
 		}
-
-		}
+		
+		if(launchManagementSessionResult)
 		try {
-			adminSessionWriter.write(Messages.ERROR);
+			adminSessionWriter.write(Messages.OK);
 			adminSessionWriter.newLine();
 			adminSessionWriter.flush();
 		} catch (IOException e) {
-			System.err.println("Failed to signal failed session start to admin:" + e.getMessage());
+			System.err.println("Failed to signal session ending:" + e.getMessage());
 		}
 
 	}

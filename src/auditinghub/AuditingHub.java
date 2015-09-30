@@ -8,7 +8,13 @@ import java.util.Map;
 
 import admin.AdminInterface;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+
+import global.Messages;
 import global.Ports;
 
 /*
@@ -61,6 +67,10 @@ public class AuditingHub {
 		}
 	}
 	
+	public void removeSession(String remoteHost){
+		this.remoteHostThreadMap.remove(remoteHost);
+	}
+	
 	public static void main(String[] args) throws IOException, InterruptedException{
 
 		System.out.println("Started Audting Hub");
@@ -71,7 +81,7 @@ public class AuditingHub {
 		String hubKey;
 
 		switch (args.length){
-		case 8:
+		case 4:
 			hubUserName = args[HUB_USERNAME_FLAG_INDEX+1];
 			hubKey=args[HUB_KEY_FLAG_INDEX+1];
 			aH = new AuditingHub(hubUserName, hubKey);
@@ -86,13 +96,28 @@ public class AuditingHub {
 		ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
 		Socket newSessionSocket;
 		Thread sessionThread;
-
+		
 		while(true){
 			newSessionSocket = hubServerSocket.accept();
-			System.out.println("Connection from:" + newSessionSocket.getRemoteSocketAddress());
-			sessionThread = new Thread(new AdminSessionRequestHandler(aH, newSessionSocket));
-			aH.temporaryThreads.put(sessionThread.getId(), sessionThread);
-			sessionThread.start();
+			
+			BufferedReader socketReader = new BufferedReader(new InputStreamReader(newSessionSocket.getInputStream())); 
+			BufferedWriter socketWriter = new BufferedWriter(new OutputStreamWriter(newSessionSocket.getOutputStream()));
+			
+			String request = socketReader.readLine();
+			String[] splittedRequest = request.split(" ");
+			boolean requestResult = false;
+			
+			switch(splittedRequest[0]){
+			//MANAGE node
+			//TODO:Notify minion and monitor and delete ssh process when leaving
+			case Messages.MANAGE:
+				System.out.println("Management request.");
+					sessionThread = new Thread(new AdminSessionRequestHandler(aH, newSessionSocket,splittedRequest[1],splittedRequest[2]));
+					aH.temporaryThreads.put(sessionThread.getId(), sessionThread);
+					sessionThread.start();
+				break;
+
+			}
 		}
 
 	}

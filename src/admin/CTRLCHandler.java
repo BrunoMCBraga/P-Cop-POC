@@ -13,9 +13,11 @@ import global.Messages;
 public class CTRLCHandler implements Runnable{
 
 	private Socket hubSocket;
+	private Process proxyProcess;
 
-	public CTRLCHandler(Socket hubSocket){
+	public CTRLCHandler(Socket hubSocket, Process proxyProcess){
 		this.hubSocket = hubSocket;
+		this.proxyProcess = proxyProcess;
 	}
 
 	//TODO:EXit
@@ -61,5 +63,6 @@ public class CTRLCHandler implements Runnable{
 			System.err.println("Invalid response:" + response);
 		}
 
+		this.proxyProcess.destroy();
 	}
 }

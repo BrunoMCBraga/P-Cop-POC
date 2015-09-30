@@ -131,9 +131,6 @@ public class MonitorRequestsHandler implements Runnable {
 					System.err.println("Unable to delete:"+splittedRequest[1]);
 				}
 				break;
-
-
-
 			}
 
 			if(requestResult){
