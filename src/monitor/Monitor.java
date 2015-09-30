@@ -37,7 +37,8 @@ public class Monitor {
 
 	//Maps IPs to Minions. The array is for random indexing.
 	private Map<String,Minion> trustedMinions;
-	private Entry<String,Minion>[] trustedMinionsArray;
+	//Entry<String,Minion>
+	private Object[] trustedMinionsArray;
 	
 	
 	private Map<String,Minion> untrustedMinions;
@@ -48,7 +49,7 @@ public class Monitor {
 	public Monitor(){
 
 		this.trustedMinions = new Hashtable<String,Minion>();
-		this.trustedMinionsArray = (Entry<String,Minion>[])this.trustedMinions.entrySet().toArray();
+		this.trustedMinionsArray = this.trustedMinions.entrySet().toArray();
 		this.untrustedMinions = new Hashtable<String,Minion>();
 		this.trustedMinionsIndexGenerator = new Random();
 		this.appsHosts = new Hashtable<String,List<Minion>>();
@@ -60,7 +61,7 @@ public class Monitor {
 
 		Minion newMinion = new Minion(newMinionIpAddress);
 		trustedMinions.put(newMinion.getIpAddress(), newMinion);
-		this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
+		this.trustedMinionsArray = trustedMinions.entrySet().toArray();
 		System.out.println("Added:" + newMinion.getIpAddress() + "Size:" + trustedMinions.size());
 		//check the boolean??
 
@@ -73,7 +74,7 @@ public class Monitor {
 				throw new UnregisteredMinion("The minion:" + minionIpAddress + " is not registered");
 		}
 		else
-			this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
+			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
 		//check the boolean??
 	}
 	
@@ -82,7 +83,7 @@ public class Monitor {
 		Minion trustedMinion = trustedMinions.remove(ipAddress);
 		if (trustedMinion != null){
 			untrustedMinions.put(ipAddress, trustedMinion);
-			this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
+			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
 		}
 		else
 			throw new UnregisteredMinion("Cannot untrusted unregistered minion:" + ipAddress);
@@ -94,7 +95,7 @@ public class Monitor {
 		Minion untrustedMinion = untrustedMinions.remove(ipAddress);
 		if (untrustedMinion != null){
 			trustedMinions.put(ipAddress, untrustedMinion);
-			this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
+			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
 		}
 		throw new UnregisteredMinion("Cannot trust unregistered minion:" + ipAddress);
 	}
