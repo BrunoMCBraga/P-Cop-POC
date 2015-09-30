@@ -5,6 +5,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
+import developer.CTRLCHandler;
 import exceptions.InvalidMessageException;
 import global.Messages;
 import global.Ports;
@@ -27,6 +28,7 @@ import java.lang.Process;
 //TODO:detect broken connections
 public class AdminInterface {
 
+	private static final String EXIT_COMMAND="exit";
 	private static final int HUB_FLAG_INDEX=0;
 	private static final int HOST_FLAG_INDEX=2;
 	private static final int USERNAME_FLAG_INDEX=4;
@@ -67,71 +69,43 @@ public class AdminInterface {
 
 	}
 
-	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException{
+	
+	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException {
+
+		boolean proxyCreationResult = startLocalProxy();
+
+
+		if(!proxyCreationResult){
+			System.err.println("Failed to create local proxy");
+			return false;
+		}
+
+		String manageRequestString = String.format("%s %s %s", Messages.MANAGE,this.userName,this.remoteHost);
 
 		this.hubSocket =  new Socket((String)null, Ports.ADMIN_SSH_PORT);
-		BufferedReader adminSessionReader = new BufferedReader(new InputStreamReader(this.hubSocket.getInputStream()));
-		BufferedWriter adminSessionWriter = new BufferedWriter(new OutputStreamWriter(this.hubSocket.getOutputStream()));
+		BufferedReader adminManageSessionReader = new BufferedReader(new InputStreamReader(this.hubSocket.getInputStream()));
+		BufferedWriter adminManageSessionWriter = new BufferedWriter(new OutputStreamWriter(this.hubSocket.getOutputStream()));
 
-		adminSessionWriter.write(message);
-		adminSessionWriter.newLine();
-		adminSessionWriter.flush();
+		adminManageSessionWriter.write(manageRequestString);
+		adminManageSessionWriter.newLine();
+		adminManageSessionWriter.flush();
 
-		//This detects when the socket is closed....
-		String response = adminSessionReader.readLine();
+		//This detects when the socket is closed....If null response....
+		String response = adminManageSessionReader.readLine();
 		switch(response){
 		case Messages.OK:
-			return true;
+			System.out.println("Success on requesting managemend session.");
+			Runtime.getRuntime().addShutdownHook(new Thread(new CTRLCHandler(this.hubSocket)));
+			break;
 		case Messages.ERROR:
 			return false;
 		default:
 			throw new InvalidMessageException("Invalide response:" + response);
 		}
-		
-
-	}
-
-	private void manageNode() {
-
-		boolean proxyCreationResult = false;
-		try {
-			proxyCreationResult = startLocalProxy();
-		} catch (IOException | InterruptedException e) {
-			System.err.println("Failed to create local ssh proxy.");
-			System.exit(1);
-		}
-
-		if(!proxyCreationResult){
-			System.err.println("Failed to create local proxy");
-			System.exit(1);
-		}
-
-		boolean syncMessResult = false;
-		String manageRequestString = String.format("%s %s %s", Messages.MANAGE,this.userName,this.remoteHost);
-		try {
-			syncMessResult = sendSyncMessageAndGetResponse(manageRequestString);
-		} catch (IOException | InvalidMessageException e) {
-			System.err.println("Unable to start admin session:" + e.getMessage());
-			System.exit(1);
-		}
-
-		if(!syncMessResult){
-			System.err.println("Failed to sync with hub");
-			System.exit(1);
-		}
-
-
 
 		String prompt = String.format("%s@%s", this.userName,this.remoteHost);
-		BufferedReader adminSessionReader = null; 
-		BufferedWriter adminSessionWriter = null;
-
-		try {
-			adminSessionReader = new BufferedReader(new InputStreamReader(this.hubSocket.getInputStream()));
-			adminSessionWriter = new BufferedWriter(new OutputStreamWriter(this.hubSocket.getOutputStream()));
-		} catch (IOException e) {
-			System.err.println("Failed to obtain socket streams for session:" + e.getMessage());
-		}
+		BufferedReader adminSessionReader = new BufferedReader(new InputStreamReader(this.hubSocket.getInputStream())); 
+		BufferedWriter adminSessionWriter = new BufferedWriter(new OutputStreamWriter(this.hubSocket.getOutputStream()));
 
 
 		BufferedReader promptReader= new BufferedReader(new InputStreamReader(System.in));
@@ -139,7 +113,6 @@ public class AdminInterface {
 
 		String hostInput = null;
 		String hostOutput = null;
-
 		//TODO:Detect ctrl+c
 		while (true){
 			try {
@@ -158,6 +131,10 @@ public class AdminInterface {
 
 			try {
 				hostInput = promptReader.readLine();
+				if(hostInput.equals(EXIT_COMMAND)){
+					new Thread(new CTRLCHandler(hubSocket)).start();
+					break;
+				}
 				adminSessionWriter.write(hostInput);
 				adminSessionWriter.newLine();
 				adminSessionWriter.flush();
@@ -168,6 +145,8 @@ public class AdminInterface {
 
 
 		}
+		
+		return true;
 
 	}
 
@@ -179,6 +158,7 @@ public class AdminInterface {
 		String hubHost;
 		String remoteHost;	
 		String key;
+		boolean commandResult = false;
 
 		switch (args.length){
 		case 8:
@@ -187,7 +167,12 @@ public class AdminInterface {
 			remoteHost=args[HOST_FLAG_INDEX+1];
 			key = args[ADMIN_KEY_INDEX+1];
 			aI = new AdminInterface(userName, hubHost, remoteHost, key);
-			aI.manageNode();
+			try {
+				commandResult = aI.manageNode();
+			} catch (IOException | InterruptedException | InvalidMessageException e) {
+				System.err.println("Failed to run management session:" + e.getMessage());
+				System.exit(1);
+			}
 			break;
 		default:
 			System.out.println("Usage: AdminInterface -a hub -h host -u userName -k key");
@@ -195,6 +180,10 @@ public class AdminInterface {
 			break;
 		}
 
+		if(!commandResult){
+			System.err.println("Failed to perform request.");
+			System.exit(1);
+		}
 		System.exit(0);
 
 	}
