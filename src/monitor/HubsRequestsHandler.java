@@ -74,6 +74,7 @@ public class HubsRequestsHandler implements Runnable {
 			boolean requestResult = true;
 
 			switch(splittedRequest[0]){
+			//SET_TRUSTED hostIP
 			case Messages.SET_TRUSTED:
 				System.out.println("Setting:" + splittedRequest[1] + " trusted.");
 				try {
@@ -83,6 +84,7 @@ public class HubsRequestsHandler implements Runnable {
 					requestResult = false;
 				}
 				break;
+			//SET_UNTRUSTED hostIP
 			case Messages.SET_UNTRUSTED:
 				System.out.println("Setting:" + splittedRequest[1] + " untrusted.");
 				try {

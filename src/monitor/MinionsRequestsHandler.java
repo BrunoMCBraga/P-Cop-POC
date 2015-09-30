@@ -77,7 +77,7 @@ public class MinionsRequestsHandler implements Runnable {
 			try {
 				socketReader.readLine();
 			} catch (IOException e) {
-				System.err.println("Error while retrieving hub sync message:" + e.getMessage());
+				System.err.println("Error while retrieving minion sync message:" + e.getMessage());
 				continue;
 			}
 
@@ -86,7 +86,7 @@ public class MinionsRequestsHandler implements Runnable {
 
 			switch(splittedRequest[0]){
 			case Messages.REGISTER:
-				System.out.println("Registering:" + splittedRequest[1]);
+				System.out.println("Registering:" + minionSocket.getInetAddress().getHostAddress());
 				monitor.addNewMinion(minionSocket.getInetAddress().getHostAddress());
 				break;
 

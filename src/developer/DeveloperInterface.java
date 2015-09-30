@@ -67,29 +67,24 @@ public class DeveloperInterface {
 		monitorWriter.flush();
 		
 		String response = monitorReader.readLine();
-		if(response.equals(Messages.OK))
+		switch(response){
+		case Messages.OK:
 			return true;
-		else if(response.equals(Messages.ERROR))
+		case Messages.ERROR:
 			return false;
-		else throw new InvalidMessageException("Invalide response:" + response);
-
-
+		default:
+			throw new InvalidMessageException("Invalide response:" + response);
+		}
+		
 	}
 
-	private void deleteApp() {
+	private boolean deleteApp() throws UnknownHostException, IOException, InvalidMessageException {
 		Path appPath = FileSystems.getDefault().getPath(appDir);
-		boolean messageResult = false;
-		try {
-			messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.DELETE_APP,this.userName,appPath.getFileName().toString()));
-		} catch (IOException | InvalidMessageException e) {
-			System.err.println("Error when notifying monitor:" + e.getMessage());
-			System.exit(1);
-		}
+		boolean messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.DELETE_APP,this.userName,appPath.getFileName().toString()));
 	
-		if(!messageResult){
-			System.err.println("Monitor returned error for delete.");
-			System.exit(1);
-		}
+		if(!messageResult)
+			return false;
+		return true;
 		
 	}
 
@@ -114,38 +109,25 @@ public class DeveloperInterface {
 		return true;
 	}
 	
-	private void deployApp() {
+	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException {
 
 		System.out.println("Sending app to monitor....");
-		boolean sendResult=false;
-		try {
-			sendResult = sendApp();
-		} catch (IOException | InterruptedException e) {
-			System.out.println("Unable to send files:" + e.getMessage());
-			System.exit(1);
-		}
+		boolean sendResult= sendApp();
+		
 
 		if(!sendResult)
-		{
-			System.out.println("Sending process returned with abnormal value.");
-			System.exit(1);
-
-		}
+			return false;
+		
 
 		Path appPath = FileSystems.getDefault().getPath(this.appDir);
 		boolean messageResult = false;
-		try {
-			messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s %s", Messages.NEW_APP,this.userName, appPath.getFileName(),this.instances));
-		//TODO:Differentiate. In case notification fails, there should be a rollback. 
-		} catch (IOException | InvalidMessageException e) {
-			System.err.println("Error when notifying monitor:" + e.getMessage());
-			System.exit(1);
-		}
 		
-		if(!messageResult){
-			System.err.println("Monitor returned error for deploy.");
-			System.exit(1);
-		}
+		sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.NEW_APP,this.userName,appPath.getFileName().toString()));
+		
+		if(!messageResult)
+			return false;
+		return true;
+			
 		
 	}
 
@@ -158,6 +140,7 @@ public class DeveloperInterface {
 		String key=null;
 		String appDir = null;
 		String instances = null;
+		boolean commandResult = false;
 		//TODO:Flags should be checked
 		switch(args.length){
 		case 10:
@@ -167,7 +150,11 @@ public class DeveloperInterface {
 			appDir=args[APPDIR_FLAG_INDEX+1];
 			instances = args[INSTANCES_FLAG_INDEX+1];
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir,Integer.parseInt(instances));
-			devInt.deployApp();
+			try {
+				commandResult = devInt.deployApp();
+			} catch (IOException | InterruptedException | InvalidMessageException e) {
+				System.err.println("Failed to deploy app:" + e.getMessage());
+			}
 			break;
 		case 9:
 			monitorHost = args[MONITOR_HOST_FLAG_INDEX+1];
@@ -175,7 +162,12 @@ public class DeveloperInterface {
 			key = args[KEY_FLAG_INDEX+1];
 			appDir=args[APPDIR_FLAG_INDEX+1];
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir);
-			devInt.deleteApp();
+			try {
+				commandResult = devInt.deleteApp();
+			} catch (IOException | InvalidMessageException e) {
+				System.err.println("Failed to delete app:" + e.getMessage());
+
+			}
 			break;
 		default:
 			System.out.println("Usage: AdminInterface -a hub -h host -u username [-n num_instances,-r]");
@@ -184,7 +176,14 @@ public class DeveloperInterface {
 
 		}
 		
-		System.exit(0);
+		if(commandResult)
+		{
+			System.out.println("Success.");
+			System.exit(0);
+		}
+		else
+			System.out.println("Failed.");
+		System.exit(1);
 
 	}
 }

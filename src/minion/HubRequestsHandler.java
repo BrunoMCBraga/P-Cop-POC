@@ -10,6 +10,7 @@ import java.net.Socket;
 
 import global.Messages;
 import global.Ports;
+import global.Scripts;
 
 /*
  * Receives migration requests: MIGRATE APP NEW_NODE
@@ -19,8 +20,8 @@ public class HubRequestsHandler implements Runnable {
 
 
 	private boolean purgeMinion() throws IOException, InterruptedException {
-		//TODO:put scripts as consts
-		String purgeMinionCommand = String.format("sudo ../PurgeMinion.sh");
+		//TODO:put scripts as constants
+		String purgeMinionCommand = String.format("sudo ../%s",Scripts.PURGE_MINION);
 		String[]  purgeMinionCommandArray = purgeMinionCommand.split(" ");
 
 
@@ -60,7 +61,7 @@ public class HubRequestsHandler implements Runnable {
 			try {
 				hubSocket = hubServerSocket.accept();
 			} catch (IOException e) {
-				System.err.println("Error while accepting logger connection:" + e.getMessage());
+				System.err.println("Error while accepting hub connection:" + e.getMessage());
 				continue;
 			}
 			
@@ -68,7 +69,7 @@ public class HubRequestsHandler implements Runnable {
 				socketReader = new BufferedReader(new InputStreamReader(hubSocket.getInputStream()));
 				socketWriter = new BufferedWriter(new OutputStreamWriter(hubSocket.getOutputStream()));
 			} catch (IOException e) {
-				System.err.println("Unable to retrieve socket stream:" + e.getMessage());
+				System.err.println("Unable to retrieve socket stream for hub:" + e.getMessage());
 			}
 			
 			String monitorRequest= null; 
@@ -76,7 +77,7 @@ public class HubRequestsHandler implements Runnable {
 			try {
 				socketReader.readLine();
 			} catch (IOException e) {
-				System.err.println("Failed to read sync line:" + e.getMessage());
+				System.err.println("Failed to read sync line from hub:" + e.getMessage());
 				continue;
 			}
 			
@@ -85,6 +86,7 @@ public class HubRequestsHandler implements Runnable {
 
 			
 			switch(splittedRequest[0]){
+			//PURGE
 			case Messages.PURGE:
 				System.out.println("Purging");
 				try {

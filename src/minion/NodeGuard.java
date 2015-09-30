@@ -52,14 +52,15 @@ public class NodeGuard {
 
 		String monitorResponse = monitorSessionReader.readLine();
 		
-		if(monitorResponse.equals(Messages.OK)){
+		switch(monitorResponse){
+		case Messages.OK:
 			new Thread(new MonitorRequestsHandler()).start();
 			return true;
-		}
-		else if(monitorResponse.equals(Messages.ERROR))
+		case Messages.ERROR:
 			return false;
-		else throw new InvalidMessageException("Invalide response:" + monitorResponse);
-		
+		default:
+			throw new InvalidMessageException("Invalide response:" + monitorResponse);
+		}	
 
 	}
 

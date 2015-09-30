@@ -16,9 +16,11 @@ import javax.net.ssl.SSLHandshakeException;
 
 import exceptions.ExistentApplicationId;
 import exceptions.InsufficientMinions;
+import exceptions.InvalidMessageException;
 import exceptions.NonExistentApplicationId;
 import global.Ports;
 import global.ProcessBinaries;
+import minion.MonitorRequestsHandler;
 import global.Directories;
 import global.Messages;
 
@@ -54,7 +56,7 @@ public class DevelopersRequestsHandler implements Runnable {
 		return true;
 	}
 
-	private boolean deployApp(String appId, int instances) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId {
+	private boolean deployApp(String appId, int instances) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId, InvalidMessageException {
 
 		List<Minion> trustedMinions =  monitor.pickNTrustedMinions(instances);		
 
@@ -65,6 +67,7 @@ public class DevelopersRequestsHandler implements Runnable {
 		BufferedReader socketReader = null; 
 		BufferedWriter socketWriter = null;
 		boolean scpResult = true;
+		String deployResult;
 		//TODO: i should scp all first and then order deploy. Also,this should be atomic.
 		for(Minion m : trustedMinions){
 			System.out.println("Uploading app to minion...");
@@ -78,6 +81,18 @@ public class DevelopersRequestsHandler implements Runnable {
 			socketWriter.write(String.format("%s %s",Messages.DEPLOY, appId));
 			socketWriter.newLine();
 			socketWriter.flush();
+			
+			deployResult = socketReader.readLine();
+			
+			switch(deployResult){
+			case Messages.OK:
+				new Thread(new MonitorRequestsHandler()).start();
+				return true;
+			case Messages.ERROR:
+				return false;
+			default:
+				throw new InvalidMessageException("Invalide response:" + deployResult);
+			}	
 
 		}
 
@@ -87,7 +102,7 @@ public class DevelopersRequestsHandler implements Runnable {
 
 	}
 
-	private boolean deleteApp(String appId) throws UnknownHostException, IOException, NonExistentApplicationId {
+	private boolean deleteApp(String appId) throws UnknownHostException, IOException, NonExistentApplicationId, InvalidMessageException {
 		
 		List<Minion> appHosts = this.monitor.getHosts(appId);
 		this.monitor.deleteApplication(appId);
@@ -96,22 +111,28 @@ public class DevelopersRequestsHandler implements Runnable {
 		BufferedReader socketReader = null; 
 		BufferedWriter socketWriter = null;
 		boolean result = true;
+		String deleteResult;
 
 		for(Minion m : appHosts){
+			System.out.println("Deleting app on minion:" + m.getIpAddress());
 			minionSocket = new Socket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
 			socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 			socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
-			System.out.println("Deleting app on minions.");
 			socketWriter.write(String.format("%s %s",Messages.DELETE, appId));
 			socketWriter.newLine();
 			socketWriter.flush();
-			if(socketReader.readLine().equals(Messages.OK)){
-				result &= true;
-			}
-			else
-				result &= false;
-			if(!result)
+		
+			deleteResult = socketReader.readLine();
+			
+			switch(deleteResult){
+			case Messages.OK:
+				new Thread(new MonitorRequestsHandler()).start();
+				return true;
+			case Messages.ERROR:
 				return false;
+			default:
+				throw new InvalidMessageException("Invalide response:" + deleteResult);
+			}	
 		}
 
 		return result;
@@ -172,17 +193,17 @@ public class DevelopersRequestsHandler implements Runnable {
 				System.out.println("Deploying:" + splittedRequest[2]);
 				try {
 					requestResult = deployApp(splittedRequest[2],Integer.parseInt(splittedRequest[3]));
-				} catch (InterruptedException | IOException | NumberFormatException | InsufficientMinions | ExistentApplicationId e) {
+				} catch (InterruptedException | IOException | NumberFormatException | InsufficientMinions | ExistentApplicationId | InvalidMessageException e) {
 					System.err.println("Unable to deploy:" + e.getMessage());
 				}
 
 				break;
-				//DELETE_APP user appId
+			//DELETE_APP user appId
 			case Messages.DELETE_APP:
 				System.out.println("Deleting:" + splittedRequest[2]);
 				try {
 					requestResult = deleteApp(splittedRequest[2]);
-				} catch (IOException | NonExistentApplicationId e) {
+				} catch (IOException | NonExistentApplicationId | InvalidMessageException e) {
 					System.err.println("Unable to delete:"+splittedRequest[2]);
 				}
 				break;

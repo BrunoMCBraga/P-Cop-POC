@@ -14,6 +14,7 @@ import java.util.List;
 import global.Directories;
 import global.Messages;
 import global.Ports;
+import global.Scripts;
 import monitor.Minion;
 
 /*
@@ -51,7 +52,7 @@ public class MonitorRequestsHandler implements Runnable {
 
 	private boolean deleteApp(String appId) throws IOException, InterruptedException {
 
-		String deleteAppCommand = String.format("sudo ../DeleteApp.sh " + appId);
+		String deleteAppCommand = String.format("sudo ../%s %s", Scripts.DELETE_APP, appId);
 		String[]  deleteAppCommandArray = deleteAppCommand.split(" ");
 
 
@@ -85,7 +86,7 @@ public class MonitorRequestsHandler implements Runnable {
 			try {
 				monitorSocket = monitorServerSocket.accept();
 			} catch (IOException e) {
-				System.err.println("Error while accepting master connection:" + e.getMessage());
+				System.err.println("Error while accepting monitor connection:" + e.getMessage());
 				continue;
 			}
 
@@ -96,7 +97,7 @@ public class MonitorRequestsHandler implements Runnable {
 				socketWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
 			} catch (IOException e) {
-				System.err.println("Error while retrieving streams:" + e.getMessage());
+				System.err.println("Error while retrieving master streams:" + e.getMessage());
 				continue;
 			}
 
@@ -113,6 +114,7 @@ public class MonitorRequestsHandler implements Runnable {
 			boolean requestResult = false;
 
 			switch(splittedRequest[0]){
+			//DEPLOY appId
 			case Messages.DEPLOY:
 				System.out.println("Deploying:" + splittedRequest[1]);
 				try {
@@ -122,7 +124,7 @@ public class MonitorRequestsHandler implements Runnable {
 				}
 
 				break;
-
+			//DELETE appId
 			case Messages.DELETE:
 				System.out.println("Deleting:" + splittedRequest[1]);
 				try {
@@ -145,7 +147,6 @@ public class MonitorRequestsHandler implements Runnable {
 			}
 			else{
 				System.out.println("Failed");
-
 				try {
 					socketWriter.write(Messages.ERROR);
 					socketWriter.newLine();
