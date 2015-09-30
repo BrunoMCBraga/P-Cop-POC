@@ -25,11 +25,6 @@ import monitor.Minion;
 //TODO:Thread pools
 public class MonitorRequestsHandler implements Runnable {
 
-	private ServerSocket monitorServerSocket;
-
-	public MonitorRequestsHandler() throws IOException {
-		this.monitorServerSocket = new ServerSocket(Ports.MINION_MONITOR_PORT);;
-	}
 
 	private boolean deployApp(String appId) throws IOException, InterruptedException{
 
@@ -74,7 +69,16 @@ public class MonitorRequestsHandler implements Runnable {
 	@Override
 	public void run() {
 
+		ServerSocket monitorServerSocket = null;
+		
+		try {
+			monitorServerSocket = new ServerSocket(Ports.MINION_MONITOR_PORT);
+		} catch (IOException e) {
+			System.err.println("Failed to create server socket for monitor:" + e.getMessage());
+			System.exit(1);
+		}
 		Socket monitorSocket = null;
+		
 
 		while(true){
 
@@ -128,7 +132,7 @@ public class MonitorRequestsHandler implements Runnable {
 				}
 				break;
 
-			
+
 
 			}
 
@@ -154,21 +158,6 @@ public class MonitorRequestsHandler implements Runnable {
 				}
 			}
 		}
-
-
-
-
-
-		/*try {
-				processMonitorRequest(monitorSocket);
-				monitorSocket.close();
-			} catch (IOException e) {
-				System.err.println("Error while processing monitor request:"+e.getMessage());
-				System.exit(1);
-
-			}*/
-
-
 
 	}
 

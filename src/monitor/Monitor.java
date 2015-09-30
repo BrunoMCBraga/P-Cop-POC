@@ -9,7 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import exceptions.ExistentApplicationId;
 import exceptions.InsufficientMinions;
+import exceptions.NonExistentApplicationId;
+import exceptions.UnregisteredMinion;
 
 import java.util.Random;
 import java.util.Set;
@@ -32,81 +35,91 @@ public class Monitor {
 	private static final int USERNAME_FLAG_INDEX=0;
 	private static final int KEY_FLAG_INDEX=2;
 
-	//Maps IPs to Minions
+	//Maps IPs to Minions. The array is for random indexing.
 	private Map<String,Minion> trustedMinions;
-	private Object[] trustedMinionsArray;
+	private Entry<String,Minion>[] trustedMinionsArray;
+	
+	
 	private Map<String,Minion> untrustedMinions;
-	private Random trustedMinionsGenerator;
+	private Random trustedMinionsIndexGenerator;
 	private Map<String,List<Minion>> appsHosts;
 	private Map<String,Application> applications;
 
 	public Monitor(){
 
 		this.trustedMinions = new Hashtable<String,Minion>();
-		this.trustedMinionsArray = this.trustedMinions.entrySet().toArray();
+		this.trustedMinionsArray = (Entry<String,Minion>[])this.trustedMinions.entrySet().toArray();
 		this.untrustedMinions = new Hashtable<String,Minion>();
-		this.trustedMinionsGenerator = new Random();
+		this.trustedMinionsIndexGenerator = new Random();
 		this.appsHosts = new Hashtable<String,List<Minion>>();
 		this.applications = new Hashtable<String,Application>();
 
 	}
 
-	public void addNewMinion(Minion newMinion){
+	public void addNewMinion(String newMinionIpAddress){
 
+		Minion newMinion = new Minion(newMinionIpAddress);
 		trustedMinions.put(newMinion.getIpAddress(), newMinion);
-		this.trustedMinionsArray = trustedMinions.entrySet().toArray();
+		this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
 		System.out.println("Added:" + newMinion.getIpAddress() + "Size:" + trustedMinions.size());
 		//check the boolean??
 
 	}
 
-	public void removeMinion(Minion minion){
-
-
-		if(trustedMinions.remove(minion.getIpAddress()) == null){
-			untrustedMinions.remove(minion.getIpAddress());
+	public void removeMinion(String minionIpAddress) throws UnregisteredMinion{
+		
+		if(trustedMinions.remove(minionIpAddress) == null){
+			if(untrustedMinions.remove(minionIpAddress) == null)
+				throw new UnregisteredMinion("The minion:" + minionIpAddress + " is not registered");
 		}
 		else
-			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
+			this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
 		//check the boolean??
 	}
 	
-	public void setMinionUntrusted(String ipAddress){
+	//TODO:1. Remove application IDs on minion. 2. Remove Minion from AppId->Minions. 3. Migrate..
+	public void setMinionUntrusted(String ipAddress) throws UnregisteredMinion{
 		Minion trustedMinion = trustedMinions.remove(ipAddress);
-		if (trustedMinion != null)
+		if (trustedMinion != null){
 			untrustedMinions.put(ipAddress, trustedMinion);
-		this.trustedMinionsArray = trustedMinions.entrySet().toArray();
-
-
+			this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
+		}
+		else
+			throw new UnregisteredMinion("Cannot untrusted unregistered minion:" + ipAddress);
 	}
-
-	public void setMinionTrusted(String ipAddress){
+	
+	
+	//TODO:store hostnames instead of IPs
+	public void setMinionTrusted(String ipAddress) throws UnregisteredMinion{
 		Minion untrustedMinion = untrustedMinions.remove(ipAddress);
-		if (untrustedMinion != null)
+		if (untrustedMinion != null){
 			trustedMinions.put(ipAddress, untrustedMinion);
-		this.trustedMinionsArray = trustedMinions.entrySet().toArray();
-
-
+			this.trustedMinionsArray = (Entry<String, Minion>[]) trustedMinions.entrySet().toArray();
+		}
+		throw new UnregisteredMinion("Cannot trust unregistered minion:" + ipAddress);
 	}
+
 	public Minion pickTrustedMinion() throws InsufficientMinions{
+		
 		if(trustedMinions.size() == 0)
 			throw new InsufficientMinions("Expected minions:1 Available:0"); 
-		System.out.println("For random, trustedMinions size is:" + trustedMinions.size());
-		int trustedIndex = trustedMinionsGenerator.nextInt(trustedMinions.size());
+
+		int trustedIndex = trustedMinionsIndexGenerator.nextInt(trustedMinions.size());
 		return ((Entry<String, Minion>)trustedMinionsArray[trustedIndex]).getValue();
 
 	}
 
 	public List<Minion> pickNTrustedMinions(int minionsNumber) throws InsufficientMinions{
+		
 		if(minionsNumber > trustedMinions.size())
-			throw new InsufficientMinions("Expected minions:" + minionsNumber + " Available:" + trustedMinions.size()); 
-		System.out.println("For random, trustedMinions size is:" + trustedMinions.size());
+			throw new InsufficientMinions("Expected minions:" + minionsNumber + " .Available:" + trustedMinions.size()); 
 
 		List<Minion> newHosts = new ArrayList<Minion>();
 		Set<Integer> indexSet = new HashSet<Integer>();
 		int trustedMinionIndex;
+		
 		for(int i = 0;i < minionsNumber;i++){
-			trustedMinionIndex = trustedMinionsGenerator.nextInt(trustedMinions.size());
+			trustedMinionIndex = trustedMinionsIndexGenerator.nextInt(trustedMinions.size());
 			if(indexSet.contains(trustedMinionIndex)){
 				i--;
 				continue;
@@ -118,21 +131,29 @@ public class Monitor {
 
 	}
 
-	public void addApplication(String appId, List<Minion> hosts){
+	public void addApplication(String appId, List<Minion> hosts) throws ExistentApplicationId{
+		
+		if(this.applications.containsKey(appId))
+			throw new ExistentApplicationId("The application id:" + appId + " already exists.");
+		
 		Application app = new Application(appId);
 		this.applications.put(appId, app);
+		List<Minion> minionsList = new ArrayList<Minion>();
+		this.appsHosts.put(appId, minionsList);
+		
 		for(Minion m : hosts){
 			m.addApp(app);
-			if(this.appsHosts.get(appId) == null)
-				this.appsHosts.put(appId, new ArrayList<Minion>());
-			this.appsHosts.get(appId).add(m);
+			minionsList.add(m);
 			System.out.println("Added host:"+m.getIpAddress()+ " with app id:" + appId);
 
 		}
 	}
 	
-	public void deleteApplication(String appId) {
-		this.applications.remove(appId);
+	public void deleteApplication(String appId) throws NonExistentApplicationId {
+		
+		if(this.applications.remove(appId)==null)
+			throw new NonExistentApplicationId("Non-existent application id:" + appId);
+		
 		List<Minion> minions = this.appsHosts.remove(appId);
 		for(Minion host : minions)
 			host.removeApp(appId);
@@ -143,7 +164,7 @@ public class Monitor {
 		return appsHosts.get(appId);		
 	}
 
-	public static void main(String[] args){
+	public static void main(String[] args) throws IOException{
 
 
 
@@ -167,22 +188,17 @@ public class Monitor {
 		}
 
 		Monitor monitor = new Monitor();
-		ServerSocket developersServerSocket = null;
 		ServerSocket minionsServerSocket = null;
-		ServerSocket hubsServerSocket = null;
+		
+		new Thread(new DevelopersRequestsHandler(monitor,userName,sshKey)).start();
+		new Thread(new HubsRequestsHandler(monitor)).start();
+		new Thread(new MinionsRequestsHandler(monitor)).start();
+		
 		try {
-			developersServerSocket = new ServerSocket(Ports.MONITOR_DEVELOPER_PORT);
-			minionsServerSocket = new ServerSocket(Ports.MONITOR_MINION_PORT);
-			hubsServerSocket = new ServerSocket(Ports.MONITOR_HUB_PORT);
-		} catch (IOException e) {
-			System.err.println("Error starting server sockets:"+ e.getMessage());
-			System.exit(1);
+			Thread.currentThread().wait();
+		} catch (InterruptedException e) {
+			System.exit(0);
 		}
-
-		new Thread(new HubsRequestsHandler(hubsServerSocket,monitor)).start();
-		new Thread(new DevelopersRequestsHandler(developersServerSocket,monitor,userName,sshKey)).start();
-		new Thread(new MinionsRequestsHandler(minionsServerSocket,monitor)).start();
-
 	}
 
 	

@@ -18,13 +18,6 @@ import global.Ports;
 public class HubRequestsHandler implements Runnable {
 
 
-	private ServerSocket loggerControlSocket;
-
-	public HubRequestsHandler() throws IOException {
-		this.loggerControlSocket = new ServerSocket(Ports.MINION_HUB_PORT);
-	}
-	
-	
 	private boolean purgeMinion() throws IOException, InterruptedException {
 		//TODO:put scripts as consts
 		String purgeMinionCommand = String.format("sudo ../PurgeMinion.sh");
@@ -48,6 +41,13 @@ public class HubRequestsHandler implements Runnable {
 	@Override
 	public void run() {
 
+		ServerSocket hubServerSocket = null;
+		try {
+			hubServerSocket = new ServerSocket(Ports.MINION_HUB_PORT);
+		} catch (IOException e) {
+			System.err.println("Failed to create server socket for hub:" + e.getMessage());
+			System.exit(1);
+		}
 		Socket hubSocket = null;
 		
 		BufferedReader socketReader = null; 
@@ -58,7 +58,7 @@ public class HubRequestsHandler implements Runnable {
 		while(true){
 
 			try {
-				hubSocket = loggerControlSocket.accept();
+				hubSocket = hubServerSocket.accept();
 			} catch (IOException e) {
 				System.err.println("Error while accepting logger connection:" + e.getMessage());
 				continue;

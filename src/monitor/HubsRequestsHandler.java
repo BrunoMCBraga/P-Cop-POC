@@ -8,73 +8,115 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import exceptions.ExistentApplicationId;
+import exceptions.InsufficientMinions;
+import exceptions.NonExistentApplicationId;
+import exceptions.UnregisteredMinion;
 import global.Messages;
+import global.Ports;
 
 /*
  * Hub sets nodes untrusted and trusted
  * */
 
 public class HubsRequestsHandler implements Runnable {
-
 	
-
-	private ServerSocket hubsServerSocket;
 	private Monitor monitor;
 
-	public HubsRequestsHandler(ServerSocket hubsServerSocket, Monitor monitor) {
-		this.hubsServerSocket = hubsServerSocket;
+	public HubsRequestsHandler(Monitor monitor) throws IOException {
 		this.monitor = monitor;
 	}
 
-	private void processHubRequest(Socket loggerSocket) throws IOException{
-		BufferedReader socketReader = null; 
-		BufferedWriter socketWriter = null;
-		
-		
-		socketReader = new BufferedReader(new InputStreamReader(loggerSocket.getInputStream()));
-		socketWriter = new BufferedWriter(new OutputStreamWriter(loggerSocket.getOutputStream()));
-		
-		String monitorRequest= socketReader.readLine();
-		String[] splittedRequest = monitorRequest.split(" ");
-		if(splittedRequest[0].equals(Messages.SET_UNTRUSTED))
-			System.out.println("Untrusting:" + splittedRequest[1]);
-		else if(splittedRequest[0].equals(Messages.SET_TRUSTED))
-			System.out.println("Trusting:" + splittedRequest[1]);
-		
-		socketWriter.write(Messages.OK);
-		socketWriter.newLine();
-		socketWriter.flush();
-		
-	}
-	
 
 	@Override
 	public void run() {
 
+		ServerSocket hubsServerSocket = null;
 		Socket hubSocket = null;
 
+		try {
+			hubsServerSocket = new ServerSocket(Ports.MONITOR_HUB_PORT);
+		} catch (IOException e) {
+			System.err.println("Failed to create server socket for hub:" + e.getMessage());
+			System.exit(1);
+		}
+		
 		while(true){
 
 			try {
 				hubSocket = hubsServerSocket.accept();
 			} catch (IOException e) {
 				System.err.println("Error while accepting hub connection:" + e.getMessage());
-				try {
-					hubSocket.close();
-					hubsServerSocket.close();
-				} catch (IOException e1) {
-				}
-				System.exit(1);
+				continue;
 			}
+
+			BufferedReader socketReader = null; 
+			BufferedWriter socketWriter = null;
 			try {
-				processHubRequest(hubSocket);
-				hubSocket.close();
-			} catch (IOException e) {
-				System.err.println("Error while processing hub request:"+e.getMessage());
-				System.exit(1);
+				socketReader = new BufferedReader(new InputStreamReader(hubSocket.getInputStream()));
+				socketWriter = new BufferedWriter(new OutputStreamWriter(hubSocket.getOutputStream()));
 
+			} catch (IOException e) {
+				System.err.println("Error while retrieving hub streams:" + e.getMessage());
+				continue;
 			}
 
+			String hubRequest = null;
+
+			try {
+				socketReader.readLine();
+			} catch (IOException e) {
+				System.err.println("Error while retrieving hub sync message:" + e.getMessage());
+				continue;
+			}
+
+			String[] splittedRequest = hubRequest.split(" ");
+			boolean requestResult = true;
+
+			switch(splittedRequest[0]){
+			case Messages.SET_TRUSTED:
+				System.out.println("Setting:" + splittedRequest[1] + " trusted.");
+				try {
+					this.monitor.setMinionTrusted(splittedRequest[1]);
+				} catch (UnregisteredMinion e) {
+					System.err.println("Unable to set trusted:" + e.getMessage());
+					requestResult = false;
+				}
+				break;
+			case Messages.SET_UNTRUSTED:
+				System.out.println("Setting:" + splittedRequest[1] + " untrusted.");
+				try {
+					this.monitor.setMinionUntrusted(splittedRequest[1]);
+				} catch (UnregisteredMinion e) {
+					System.err.println("Unable to set untrusted:" + e.getMessage());
+					requestResult = false;
+				}
+				break;
+				//TODO:Default on wrong sync messages
+			}
+
+
+			if(requestResult){
+				System.out.println("Success");
+				try {
+					socketWriter.write(Messages.OK);
+					socketWriter.newLine();
+					socketWriter.flush();
+				} catch (IOException e) {
+					System.err.println("Failed to send OK:" + e.getMessage());
+				}
+			}
+			else{
+				System.out.println("Failed");
+
+				try {
+					socketWriter.write(Messages.ERROR);
+					socketWriter.newLine();
+					socketWriter.flush();
+				} catch (IOException e) {
+					System.err.println("Failed to send ERROR:" + e.getMessage());
+				}
+			}
 		}		
 	}
 

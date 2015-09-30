@@ -79,12 +79,15 @@ public class AdminInterface {
 
 		//This detects when the socket is closed....
 		String response = adminSessionReader.readLine();
-		if(response.equals(Messages.OK))
+		switch(response){
+		case Messages.OK:
 			return true;
-		else if(response.equals(Messages.ERROR))
+		case Messages.ERROR:
 			return false;
-		else throw new InvalidMessageException("Invalide response:" + response);
-
+		default:
+			throw new InvalidMessageException("Invalide response:" + response);
+		}
+		
 
 	}
 
@@ -97,12 +100,12 @@ public class AdminInterface {
 			System.err.println("Failed to create local ssh proxy.");
 			System.exit(1);
 		}
-		
+
 		if(!proxyCreationResult){
 			System.err.println("Failed to create local proxy");
 			System.exit(1);
 		}
-			
+
 		boolean syncMessResult = false;
 		String manageRequestString = String.format("%s %s %s", Messages.MANAGE,this.userName,this.remoteHost);
 		try {
@@ -148,11 +151,11 @@ public class AdminInterface {
 				System.err.println("Failed to retrieve hub message:" + e.getMessage());
 				continue;
 			}
-			
+
 			if(!hostOutput.equals(prompt))
 				continue;
-			
-			
+
+
 			try {
 				hostInput = promptReader.readLine();
 				adminSessionWriter.write(hostInput);
@@ -162,7 +165,7 @@ public class AdminInterface {
 				System.err.println("Failed to send command to hub:" + e.getMessage());
 				continue;
 			}
-			
+
 
 		}
 
