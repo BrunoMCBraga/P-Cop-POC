@@ -91,7 +91,7 @@ public class DeveloperInterface {
 	private boolean sendApp() throws IOException, InterruptedException{
 
 		Path appPath = FileSystems.getDefault().getPath(this.appDir);
-		String scpArgs = String.format("-r -i %s -oStrictHostKeyChecking=no %s %s@%s:%s%s",this.key, this.appDir,this.userName,this.monitorHost,Directories.APPS_DIR,appPath.getFileName());
+		String scpArgs = String.format("-r -i %s -oStrictHostKeyChecking=no %s %s@%s:%s%s",this.key, this.appDir,this.userName,this.monitorHost,Directories.APPS_DIR_MONITOR,appPath.getFileName());
 		String[] scpArgsArray = scpArgs.split(" ");
 		List<String> finalCommand = new ArrayList<String>(scpArgsArray.length+1);
 		finalCommand.add(ProcessBinaries.SCP_DIR);
@@ -120,9 +120,7 @@ public class DeveloperInterface {
 		
 
 		Path appPath = FileSystems.getDefault().getPath(this.appDir);
-		boolean messageResult = false;
-		
-		sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.NEW_APP,this.userName,appPath.getFileName().toString()));
+		boolean messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s %d", Messages.NEW_APP,this.userName,appPath.getFileName().toString(),this.instances));
 		
 		if(!messageResult)
 			return false;

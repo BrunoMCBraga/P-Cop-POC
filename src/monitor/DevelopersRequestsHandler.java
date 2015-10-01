@@ -2,6 +2,7 @@ package monitor;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -38,7 +39,7 @@ public class DevelopersRequestsHandler implements Runnable {
 
 	private boolean sendApp(Minion minion, String appDir) throws IOException, InterruptedException{
 
-		String scpArgs = String.format("-r -i %s -oStrictHostKeyChecking=no  ~/%s %s@%s:%s%s",sshKey, appDir,userName,minion.getIpAddress(),Directories.APPS_DIR,appDir);
+		String scpArgs = String.format("-r -i %s -oStrictHostKeyChecking=no ../../%s%s %s@%s:%s%s",sshKey, Directories.APPS_DIR_MONITOR,appDir,userName,minion.getIpAddress(),Directories.APPS_DIR_MINION,appDir);
 		String[] scpArgsArray = scpArgs.split(" ");
 		List<String> finalCommand = new ArrayList<String>(scpArgsArray.length+1);
 		finalCommand.add(ProcessBinaries.SCP_DIR);
@@ -47,6 +48,7 @@ public class DevelopersRequestsHandler implements Runnable {
 			finalCommand.add(arg);
 		System.out.println(finalCommand);
 		ProcessBuilder scpSessionBuilder = new ProcessBuilder(finalCommand);
+		scpSessionBuilder.redirectError(new File("ErrorScpMonitor.txt"));
 		Process scpProcess = scpSessionBuilder.start();
 		int processResult = scpProcess.waitFor();
 		if (processResult != 0){
@@ -61,6 +63,8 @@ public class DevelopersRequestsHandler implements Runnable {
 		List<Minion> trustedMinions =  monitor.pickNTrustedMinions(instances);		
 
 		//this assumes the deployment works. the error codes returned by process waitfor are not correct and therefore do not allow correct verification.AFAIK
+		
+		//TODO:check without adding. If the scp or others fail the application ID reamisn taken.
 		this.monitor.addApplication(appId, trustedMinions);
 
 		Socket minionSocket =  null;
@@ -86,8 +90,7 @@ public class DevelopersRequestsHandler implements Runnable {
 			
 			switch(deployResult){
 			case Messages.OK:
-				new Thread(new MonitorRequestsHandler()).start();
-				return true;
+				continue;
 			case Messages.ERROR:
 				return false;
 			default:
@@ -178,7 +181,7 @@ public class DevelopersRequestsHandler implements Runnable {
 			String developerRequest = null;
 
 			try {
-				socketReader.readLine();
+				developerRequest = socketReader.readLine();
 			} catch (IOException e) {
 				System.err.println("Error while retrieving sync message:" + e.getMessage());
 				continue;

@@ -75,7 +75,7 @@ public class MinionsRequestsHandler implements Runnable {
 			String minionRequest = null;
 
 			try {
-				socketReader.readLine();
+				minionRequest = socketReader.readLine();
 			} catch (IOException e) {
 				System.err.println("Error while retrieving minion sync message:" + e.getMessage());
 				continue;

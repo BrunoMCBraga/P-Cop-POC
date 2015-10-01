@@ -75,7 +75,7 @@ public class HubRequestsHandler implements Runnable {
 			String monitorRequest= null; 
 			
 			try {
-				socketReader.readLine();
+				monitorRequest = socketReader.readLine();
 			} catch (IOException e) {
 				System.err.println("Failed to read sync line from hub:" + e.getMessage());
 				continue;

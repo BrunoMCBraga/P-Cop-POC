@@ -64,7 +64,7 @@ public class HubsRequestsHandler implements Runnable {
 			String hubRequest = null;
 
 			try {
-				socketReader.readLine();
+				hubRequest = socketReader.readLine();
 			} catch (IOException e) {
 				System.err.println("Error while retrieving hub sync message:" + e.getMessage());
 				continue;

@@ -76,7 +76,7 @@ public class NodeGuard {
 		System.out.println("Started Node Guard");
 
 		String monitorHost;
-		NodeGuard nodeGuard;
+		NodeGuard nodeGuard = null;
 		boolean handlersStartResult = true;
 
 		switch(args.length){
@@ -99,9 +99,13 @@ public class NodeGuard {
 
 		}
 
+		
 		if(handlersStartResult)
 			try {
-				Thread.currentThread().wait();
+				synchronized (Thread.currentThread()) {
+					Thread.currentThread().wait();
+
+				}
 			} catch (InterruptedException e) {
 				System.exit(0);
 			}

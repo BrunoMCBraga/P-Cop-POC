@@ -196,7 +196,9 @@ public class Monitor {
 		new Thread(new MinionsRequestsHandler(monitor)).start();
 		
 		try {
-			Thread.currentThread().wait();
+			synchronized (Thread.currentThread()) {
+				Thread.currentThread().wait();
+			}
 		} catch (InterruptedException e) {
 			System.exit(0);
 		}

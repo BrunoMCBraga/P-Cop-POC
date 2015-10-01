@@ -29,7 +29,7 @@ public class MonitorRequestsHandler implements Runnable {
 
 	private boolean deployApp(String appId) throws IOException, InterruptedException{
 
-		String createContainerCommand = String.format("sudo docker build -t %s-container ../../%s%s",appId,Directories.APPS_DIR,appId);
+		String createContainerCommand = String.format("sudo docker build -t %s-container ../../%s%s",appId,Directories.APPS_DIR_MINION,appId);
 		String deployContainerCommand = String.format("sudo docker run -p 80 -d --name %s %s-container",appId,appId);
 
 
@@ -38,12 +38,14 @@ public class MonitorRequestsHandler implements Runnable {
 
 
 		ProcessBuilder createConainerProcessBuilder = new ProcessBuilder(createContainerCommandArray);
+		createConainerProcessBuilder.redirectError(new File("ErrorOnContainerCreate.txt"));
 		Process createContainerProcess = createConainerProcessBuilder.start();
 		int processResult = createContainerProcess.waitFor();
 		if (processResult != 0){
 			return false;
 		}
 		ProcessBuilder deployConainerProcessBuilder = new ProcessBuilder(deployContainerCommandArray);
+		deployConainerProcessBuilder.redirectError(new File("ErrorOnBuild.txt"));
 		Process deployProcess = deployConainerProcessBuilder.start();
 		processResult += deployProcess.waitFor();
 
@@ -104,7 +106,7 @@ public class MonitorRequestsHandler implements Runnable {
 			String monitorRequest = null;
 
 			try {
-				socketReader.readLine();
+				monitorRequest = socketReader.readLine();
 			} catch (IOException e) {
 				System.err.println("Error while retrieving sync message:" + e.getMessage());
 				continue;
