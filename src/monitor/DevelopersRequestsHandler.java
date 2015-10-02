@@ -129,8 +129,7 @@ public class DevelopersRequestsHandler implements Runnable {
 			
 			switch(deleteResult){
 			case Messages.OK:
-				new Thread(new MonitorRequestsHandler()).start();
-				return true;
+				continue;
 			case Messages.ERROR:
 				return false;
 			default:

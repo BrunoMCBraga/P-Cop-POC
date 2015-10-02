@@ -18,7 +18,7 @@ import global.Messages;
 import global.Ports;
 
 /*
- * AudtingHub -u userName -k key
+ * AudtingHub -u userName -k key -m monitor
  * 
  * */
 
@@ -30,17 +30,21 @@ public class AuditingHub {
 
 	private static final int HUB_USERNAME_FLAG_INDEX=0;
 	private static final int HUB_KEY_FLAG_INDEX=2;
+	private static final int MONITOR_FLAG_INDEX = 4;
 
 	private String hubUsername;
 	private String hubKey;
+	private String monitorHost;
+
 	private Map<Long, Thread> temporaryThreads;
 	private Map<String, Thread> remoteHostThreadMap;
 
 
-	public AuditingHub(String hubUserName, String hubKey){
+	public AuditingHub(String hubUserName, String hubKey, String monitorHost){
 		
 		this.hubUsername = hubUserName;
 		this.hubKey = hubKey;
+		this.monitorHost = monitorHost;
 		this.temporaryThreads = new Hashtable<Long,Thread>();
 		this.remoteHostThreadMap = new Hashtable<String,Thread>();
 		
@@ -52,6 +56,10 @@ public class AuditingHub {
 	
 	public String getHubKey(){
 		return this.hubKey;
+	}
+	
+	public String getMonitorHost() {
+		return this.monitorHost;
 	}
 	
 	//Check if there is another session to a given host
@@ -79,12 +87,14 @@ public class AuditingHub {
 
 		String hubUserName;
 		String hubKey;
+		String monitorHost;
 
 		switch (args.length){
-		case 4:
+		case 6:
 			hubUserName = args[HUB_USERNAME_FLAG_INDEX+1];
 			hubKey=args[HUB_KEY_FLAG_INDEX+1];
-			aH = new AuditingHub(hubUserName, hubKey);
+			monitorHost=args[MONITOR_FLAG_INDEX+1];
+			aH = new AuditingHub(hubUserName, hubKey, monitorHost);
 			break;
 		default:
 			System.out.println("Usage: AdminInterface -a hub -h host -u userName -k key");
@@ -121,6 +131,7 @@ public class AuditingHub {
 		}
 
 	}
+
 	
 
 }

@@ -62,7 +62,10 @@ public class CTRLCHandler implements Runnable{
 		default:
 			System.err.println("Invalid response:" + response);
 		}
-
+		
+		System.out.println("Destroying proxy process.");
 		this.proxyProcess.destroy();
+		System.out.println("Proxy process destroyed. Now returning.");
+		return;
 	}
 }

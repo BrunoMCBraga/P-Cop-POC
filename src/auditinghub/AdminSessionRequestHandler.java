@@ -34,6 +34,8 @@ public class AdminSessionRequestHandler implements Runnable {
 
 	private String adminUserName;
 	private String remoteHost;
+	private String monitorHost;
+
 	private String promptString;
 	private Process auditingHubToNodeSessionProcess;
 	private Logger logger;
@@ -48,6 +50,7 @@ public class AdminSessionRequestHandler implements Runnable {
 
 		this.hubUserName = auditingHubInstance.getHubUserName();
 		this.hubKey = auditingHubInstance.getHubKey();
+		this.monitorHost = auditingHubInstance.getMonitorHost();
 
 	}
 
@@ -55,7 +58,7 @@ public class AdminSessionRequestHandler implements Runnable {
 	private void launchSessionProcess() throws IOException{
 
 
-		String sshArgs = String.format("-i %s -oStrictHostKeyChecking=no -t %s@%s -vvvvv",this.hubKey+this.remoteHost, this.hubUserName,this.remoteHost);
+		String sshArgs = String.format("-i %s -oStrictHostKeyChecking=no -t %s@%s -vvvvv",this.hubKey, this.hubUserName,this.remoteHost);
 		System.out.println(sshArgs);
 		String[] sshArgsArray = sshArgs.split(" ");
 		List<String> finalCommand = new ArrayList<String>(sshArgsArray.length+1);
@@ -94,11 +97,12 @@ public class AdminSessionRequestHandler implements Runnable {
 
 	private boolean launchManagementSession() throws IOException, InvalidMessageException {
 		
-		Socket monitorSocket = new Socket(this.remoteHost, Ports.MONITOR_HUB_PORT);
+		//TODO:register hub
+		Socket monitorSocket = new Socket(InetAddress.getByName(this.monitorHost), Ports.MONITOR_HUB_PORT);
 		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 		
-		monitorSessionWriter.write(String.format("%s %s", Messages.SET_UNTRUSTED, InetAddress.getByName(this.remoteHost)));
+		monitorSessionWriter.write(String.format("%s %s", Messages.SET_UNTRUSTED, InetAddress.getByName(this.remoteHost).getHostAddress()));
 		monitorSessionWriter.newLine();
 		monitorSessionWriter.flush();
 
@@ -181,6 +185,7 @@ public class AdminSessionRequestHandler implements Runnable {
 				//1.delete process.2.delete active session from maps.
 				if(hostInput.equals(Messages.MANAGE_TEARDOWN))
 				{
+					System.out.println("Session ended.");
 					this.auditingHubToNodeSessionProcess.destroy();
 					this.auditingHubInstance.removeSession(this.remoteHost);
 					return true;
@@ -213,15 +218,6 @@ public class AdminSessionRequestHandler implements Runnable {
 			System.err.println("Error obtaining admin session streams:" + e.getMessage());
 			return;
 		}
-
-		String adminRequest;
-		try {
-			adminRequest = adminSessionReader.readLine();
-		} catch (IOException e) {
-			System.err.println("Error reading synchronization string:" + e.getMessage());
-			return;
-		} 
-
 
 		//TODO:PURGE before entering...
 		//TODO:if writes fail, session lists may be outdated

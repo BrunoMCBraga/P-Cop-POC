@@ -59,7 +59,7 @@ public class AdminInterface {
 
 		ProcessBuilder sshSessionBuilder = new ProcessBuilder(finalCommand);
 		this.proxyProcess = sshSessionBuilder.start();
-	
+
 
 		int processResult = proxyProcess.waitFor();
 		if (processResult != 0){
@@ -70,7 +70,7 @@ public class AdminInterface {
 
 	}
 
-	
+
 	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException {
 
 		boolean proxyCreationResult = startLocalProxy();
@@ -95,7 +95,7 @@ public class AdminInterface {
 		String response = adminManageSessionReader.readLine();
 		switch(response){
 		case Messages.OK:
-			System.out.println("Success on requesting managemend session.");
+			System.out.println("Success on requesting management session.");
 			Runtime.getRuntime().addShutdownHook(new Thread(new CTRLCHandler(this.hubSocket,this.proxyProcess)));
 			break;
 		case Messages.ERROR:
@@ -104,7 +104,7 @@ public class AdminInterface {
 			throw new InvalidMessageException("Invalide response:" + response);
 		}
 
-		String prompt = String.format("%s@%s", this.userName,this.remoteHost);
+		String prompt = String.format("[%s@%s]>", this.userName,this.remoteHost);
 		BufferedReader adminSessionReader = new BufferedReader(new InputStreamReader(this.hubSocket.getInputStream())); 
 		BufferedWriter adminSessionWriter = new BufferedWriter(new OutputStreamWriter(this.hubSocket.getOutputStream()));
 
@@ -133,8 +133,11 @@ public class AdminInterface {
 			try {
 				hostInput = promptReader.readLine();
 				if(hostInput.equals(EXIT_COMMAND)){
-					new Thread(new CTRLCHandler(this.hubSocket,this.proxyProcess)).start();
+					Thread cleanupThread = new Thread(new CTRLCHandler(this.hubSocket,this.proxyProcess));
+					cleanupThread.start();
+					cleanupThread.join();
 					break;
+				
 				}
 				adminSessionWriter.write(hostInput);
 				adminSessionWriter.newLine();
@@ -146,7 +149,8 @@ public class AdminInterface {
 
 
 		}
-		
+
+		System.out.println("Bye!");
 		return true;
 
 	}
@@ -185,6 +189,7 @@ public class AdminInterface {
 			System.err.println("Failed to perform request.");
 			System.exit(1);
 		}
+		
 		System.exit(0);
 
 	}
