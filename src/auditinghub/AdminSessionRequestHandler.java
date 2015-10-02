@@ -25,7 +25,7 @@ import global.ProcessBinaries;
 //TODO:Detect mistyping errors. Since the session is not interactive, errors seem not to be being sent.
 public class AdminSessionRequestHandler implements Runnable {
 
-	private static final String UNCOMMITED_LOGS_DIR="Logs/Uncommited/";
+	private static final String UNCOMMITED_LOGS_DIR="../../Logs/Uncommited/";
 
 	AuditingHub auditingHubInstance;
 	private Socket adminToHubSocket;
@@ -86,7 +86,7 @@ public class AdminSessionRequestHandler implements Runnable {
 		this.logger = Logger.getLogger(String.format("%s.%s.%s", AuditingHub.class.getCanonicalName(),adminUserName,remoteHost));
 		this.logger.setLevel(Level.ALL);
 		LocalDateTime current = LocalDateTime.now();
-		String logFileName = String.format("%s/%s@%s_%d-%s-%d_%d-%d-%d.log", logsDirPath.toString(),this.adminUserName,this.remoteHost,current.getDayOfMonth(),current.getMonth().toString(),current.getYear(),current.getHour(),current.getMinute(),current.getSecond());
+		String logFileName = String.format("%s/%s@%s__%d-%s-%d_%d-%d-%d.log", logsDirPath.toString(),this.adminUserName,this.remoteHost,current.getDayOfMonth(),current.getMonth().toString(),current.getYear(),current.getHour(),current.getMinute(),current.getSecond());
 		FileHandler handler = new FileHandler(logFileName,true);
 		handler.setFormatter(new SimpleFormatter());
 		this.logger.addHandler(handler);
@@ -164,6 +164,7 @@ public class AdminSessionRequestHandler implements Runnable {
 			try {
 				hostOutput = hostSessionReader.readLine();
 				hostCompleteResponseBuilder.append(hostOutput);
+				hostCompleteResponseBuilder.append(System.lineSeparator());
 				adminSessionWriter.write(hostOutput);
 				adminSessionWriter.newLine();
 				adminSessionWriter.flush();
@@ -199,7 +200,7 @@ public class AdminSessionRequestHandler implements Runnable {
 			}
 
 
-			this.logger.log(Level.ALL, "Admin->Host:"+hostInput);
+			this.logger.log(Level.ALL, "Admin->Host:"+hostInput+System.lineSeparator());
 			//TODO:Return...
 
 		}
