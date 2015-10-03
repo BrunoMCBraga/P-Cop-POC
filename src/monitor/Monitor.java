@@ -39,8 +39,8 @@ public class Monitor {
 	private Map<String,Minion> trustedMinions;
 	//Entry<String,Minion>
 	private Object[] trustedMinionsArray;
-	
-	
+
+
 	private Map<String,Minion> untrustedMinions;
 	private Random trustedMinionsIndexGenerator;
 	private Map<String,List<Minion>> appsHosts;
@@ -68,7 +68,7 @@ public class Monitor {
 	}
 
 	public void removeMinion(String minionIpAddress) throws UnregisteredMinion{
-		
+
 		if(trustedMinions.remove(minionIpAddress) == null){
 			if(untrustedMinions.remove(minionIpAddress) == null)
 				throw new UnregisteredMinion("The minion:" + minionIpAddress + " is not registered");
@@ -77,31 +77,33 @@ public class Monitor {
 			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
 		//check the boolean??
 	}
-	
+
 	//TODO:1. Remove application IDs on minion. 2. Remove Minion from AppId->Minions. 3. Migrate..
 	public void setMinionUntrusted(String ipAddress) throws UnregisteredMinion{
 		Minion trustedMinion = trustedMinions.remove(ipAddress);
 		if (trustedMinion != null){
 			untrustedMinions.put(ipAddress, trustedMinion);
 			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
+			return;
 		}
-		else
-			throw new UnregisteredMinion("Cannot untrusted unregistered minion:" + ipAddress);
+		throw new UnregisteredMinion("Cannot untrusted unregistered minion:" + ipAddress);
 	}
-	
-	
+
+
 	//TODO:store hostnames instead of IPs
 	public void setMinionTrusted(String ipAddress) throws UnregisteredMinion{
 		Minion untrustedMinion = untrustedMinions.remove(ipAddress);
 		if (untrustedMinion != null){
 			trustedMinions.put(ipAddress, untrustedMinion);
 			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
+			return;
 		}
+
 		throw new UnregisteredMinion("Cannot trust unregistered minion:" + ipAddress);
 	}
 
 	public Minion pickTrustedMinion() throws InsufficientMinions{
-		
+
 		if(trustedMinions.size() == 0)
 			throw new InsufficientMinions("Expected minions:1 Available:0"); 
 
@@ -111,14 +113,14 @@ public class Monitor {
 	}
 
 	public List<Minion> pickNTrustedMinions(int minionsNumber) throws InsufficientMinions{
-		
+
 		if(minionsNumber > trustedMinions.size())
 			throw new InsufficientMinions("Expected minions:" + minionsNumber + " .Available:" + trustedMinions.size()); 
 
 		List<Minion> newHosts = new ArrayList<Minion>();
 		Set<Integer> indexSet = new HashSet<Integer>();
 		int trustedMinionIndex;
-		
+
 		for(int i = 0;i < minionsNumber;i++){
 			trustedMinionIndex = trustedMinionsIndexGenerator.nextInt(trustedMinions.size());
 			if(indexSet.contains(trustedMinionIndex)){
@@ -133,15 +135,15 @@ public class Monitor {
 	}
 
 	public void addApplication(String appId, List<Minion> hosts) throws ExistentApplicationId{
-		
+
 		if(this.applications.containsKey(appId))
 			throw new ExistentApplicationId("The application id:" + appId + " already exists.");
-		
+
 		Application app = new Application(appId);
 		this.applications.put(appId, app);
 		List<Minion> minionsList = new ArrayList<Minion>();
 		this.appsHosts.put(appId, minionsList);
-		
+
 		for(Minion m : hosts){
 			m.addApp(app);
 			minionsList.add(m);
@@ -149,18 +151,18 @@ public class Monitor {
 
 		}
 	}
-	
+
 	public void deleteApplication(String appId) throws NonExistentApplicationId {
-		
+
 		if(this.applications.remove(appId)==null)
 			throw new NonExistentApplicationId("Non-existent application id:" + appId);
-		
+
 		List<Minion> minions = this.appsHosts.remove(appId);
 		for(Minion host : minions)
 			host.removeApp(appId);
-		
+
 	}
-	
+
 	public List<Minion> getHosts(String appId){
 		return appsHosts.get(appId);		
 	}
@@ -190,11 +192,11 @@ public class Monitor {
 
 		Monitor monitor = new Monitor();
 		ServerSocket minionsServerSocket = null;
-		
+
 		new Thread(new DevelopersRequestsHandler(monitor,userName,sshKey)).start();
 		new Thread(new HubsRequestsHandler(monitor)).start();
 		new Thread(new MinionsRequestsHandler(monitor)).start();
-		
+
 		try {
 			synchronized (Thread.currentThread()) {
 				Thread.currentThread().wait();
@@ -204,5 +206,5 @@ public class Monitor {
 		}
 	}
 
-	
+
 }
