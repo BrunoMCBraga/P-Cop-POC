@@ -7,6 +7,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import exceptions.ExistentApplicationId;
 import exceptions.InsufficientMinions;
@@ -20,13 +24,25 @@ import global.Ports;
  * */
 
 public class HubsRequestsHandler implements Runnable {
-	
+
 	private Monitor monitor;
 
 	public HubsRequestsHandler(Monitor monitor) throws IOException {
 		this.monitor = monitor;
 	}
+	
+	private boolean spawnReplacementInstances(Minion untrustedMinion) {
+		Map<String,Minion> trustedMinions = this.monitor.getTrustedMinions();
+		Set<String> trustedSet = trustedMinions.keySet();
+		List<Minion> applicationHosts;
+		Set<String> nonHostingTrustedAddresses;
+		
+		for(Entry<String, Application> applications: untrustedMinion.getApplications().entrySet()){
+			applicationHosts = this.monitor.getHosts(applications.getKey());
+			trustedSet.removeAll(applicationHosts);
+		}
 
+	}
 
 	@Override
 	public void run() {
@@ -40,7 +56,7 @@ public class HubsRequestsHandler implements Runnable {
 			System.err.println("Failed to create server socket for hub:" + e.getMessage());
 			System.exit(1);
 		}
-		
+
 		while(true){
 
 			try {
@@ -79,12 +95,13 @@ public class HubsRequestsHandler implements Runnable {
 				System.out.println("Setting:" + splittedRequest[1] + " trusted.");
 				try {
 					this.monitor.setMinionTrusted(splittedRequest[1]);
+					spawnReplacementInstances(this.monitor.getUntrustedMinion(splittedRequest[1]));
 				} catch (UnregisteredMinion e) {
 					System.err.println("Unable to set trusted:" + e.getMessage());
 					requestResult = false;
 				}
 				break;
-			//SET_UNTRUSTED hostIP
+				//SET_UNTRUSTED hostIP
 			case Messages.SET_UNTRUSTED:
 				System.out.println("Setting:" + splittedRequest[1] + " untrusted.");
 				try {

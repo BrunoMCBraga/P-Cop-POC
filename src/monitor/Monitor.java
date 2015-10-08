@@ -96,6 +96,8 @@ public class Monitor {
 		if (untrustedMinion != null){
 			trustedMinions.put(ipAddress, untrustedMinion);
 			this.trustedMinionsArray = trustedMinions.entrySet().toArray();
+			for(Entry<String,Application> applications : untrustedMinion.getApplications().entrySet())
+				this.appsHosts.get(applications.getKey()).remove(untrustedMinion);
 			return;
 		}
 
@@ -167,6 +169,7 @@ public class Monitor {
 		return appsHosts.get(appId);		
 	}
 
+	
 	public static void main(String[] args) throws IOException{
 
 
@@ -205,6 +208,16 @@ public class Monitor {
 			System.exit(0);
 		}
 	}
+
+	public Minion getUntrustedMinion(String ipAddress) {
+		return this.untrustedMinions.get(ipAddress);
+	}
+
+	public Map<String, Minion> getTrustedMinions() {
+		return this.trustedMinions;
+	}
+
+	
 
 
 }

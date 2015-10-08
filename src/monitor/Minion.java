@@ -18,6 +18,10 @@ public class Minion {
 		return ipAddress;
 	}
 	
+	public Map<String, Application>  getApplications() {
+		return this.minionApplications;
+	}
+	
 	public void addApp(Application app){
 		this.minionApplications.put(app.getAppId(),app);
 	}
@@ -26,6 +30,16 @@ public class Minion {
 		this.minionApplications.remove(appId);
 	}
 	
+	@Override
+	public boolean equals(Object obj){
+		if (!(obj instanceof Minion))
+            return false;
+        if (obj == this)
+            return true;
+
+        Minion minion = (Minion) obj;
+        return this.ipAddress.equals(minion);
+	}
 	
 
 }
