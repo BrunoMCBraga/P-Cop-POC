@@ -197,7 +197,7 @@ public class Monitor {
 		ServerSocket minionsServerSocket = null;
 
 		new Thread(new DevelopersRequestsHandler(monitor,userName,sshKey)).start();
-		new Thread(new HubsRequestsHandler(monitor)).start();
+		new Thread(new HubsRequestsHandler(monitor,userName,sshKey)).start();
 		new Thread(new MinionsRequestsHandler(monitor)).start();
 
 		try {
