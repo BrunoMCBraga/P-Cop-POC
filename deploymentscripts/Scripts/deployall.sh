@@ -52,7 +52,7 @@ echo "Preparing base environment and running P-Cop on nodes."
 for monitor in ${MonitorHostsArray[@]}
 do      
         echo "On monitor:$monitor"
-        gnome-terminal --title=$monitor -x sh -c 'ssh -t -i '"$IdentityKey $Username@$monitor ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -M"
+        gnome-terminal --title=$monitor -x sh -c 'ssh -t -i '"$IdentityKey $Username@$monitor ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -M $monitor"
         echo "Done!"
 done
 
@@ -60,14 +60,14 @@ for minion in ${MinionHostsArray[@]}
 do      
         echo "On minion:$minion"
 	ssh -t -i "$IdentityKey" "$Username@$minion" "sudo $UploadedFilesPath$PurgeMinionScript"
-        gnome-terminal --title=$minion -x sh -c 'ssh -t -i '"$IdentityKey $Username@$minion ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -m $MonitorHostsArray"
+        gnome-terminal --title=$minion -x sh -c 'ssh -t -i '"$IdentityKey $Username@$minion ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -m $minion $MonitorHostsArray"
         echo "Done!"
 done
 
 for hub in ${HubHostsArray[@]}
 do      
         echo "On minion:$hub"
-        gnome-terminal --title=$hub -x sh -c 'ssh -t -i '"$IdentityKey $Username@$hub ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -h"
+        gnome-terminal --title=$hub -x sh -c 'ssh -t -i '"$IdentityKey $Username@$hub ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -h $hub"
         echo "Done!"
 done
 

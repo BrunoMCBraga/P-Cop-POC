@@ -14,6 +14,7 @@ import java.net.UnknownHostException;
 import auditinghub.AdminSessionRequestHandler;
 import developer.DeveloperInterface;
 import exceptions.InvalidMessageException;
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 
@@ -74,6 +75,8 @@ public class NodeGuard {
 	public static void main(String[] args){
 
 		System.out.println("Started Node Guard");
+		System.setProperty("javax.net.ssl.keyStore", Credentials.MINION_KEYSTORE);
+		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
 
 		String monitorHost;
 		NodeGuard nodeGuard = null;

@@ -8,6 +8,8 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import javax.net.ssl.SSLServerSocketFactory;
+
 import exceptions.UnregisteredMinion;
 import global.Messages;
 import global.Ports;
@@ -42,11 +44,16 @@ public class MinionsRequestsHandler implements Runnable {
 	@Override
 	public void run() {
 
+		//ServerSocket minionsServerSocket = null;
+		//Socket minionSocket = null;
+		
+		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		ServerSocket minionsServerSocket = null;
+		
 		Socket minionSocket = null;
 
 		try {
-			minionsServerSocket = new ServerSocket(Ports.MONITOR_MINION_PORT);
+			minionsServerSocket = ssf.createServerSocket(Ports.MONITOR_MINION_PORT);
 		} catch (IOException e) {
 			System.err.println("Failed to create server socket for minions:" + e.getMessage());
 			System.exit(1);

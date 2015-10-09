@@ -11,6 +11,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.net.ssl.SSLServerSocketFactory;
+
 import global.Directories;
 import global.Messages;
 import global.Ports;
@@ -72,10 +74,13 @@ public class MonitorRequestsHandler implements Runnable {
 	@Override
 	public void run() {
 
+		//ServerSocket monitorServerSocket = null;
+		
+		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		ServerSocket monitorServerSocket = null;
 		
 		try {
-			monitorServerSocket = new ServerSocket(Ports.MINION_MONITOR_PORT);
+			monitorServerSocket = ssf.createServerSocket(Ports.MINION_MONITOR_PORT);
 		} catch (IOException e) {
 			System.err.println("Failed to create server socket for monitor:" + e.getMessage());
 			System.exit(1);

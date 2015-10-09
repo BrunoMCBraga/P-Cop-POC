@@ -17,6 +17,7 @@ import exceptions.UnregisteredMinion;
 import java.util.Random;
 import java.util.Set;
 
+import global.Credentials;
 import global.Ports;
 
 /*
@@ -175,6 +176,9 @@ public class Monitor {
 
 
 		System.out.println("Started Monitor");
+		System.setProperty("javax.net.ssl.keyStore", Credentials.MONITOR_KEYSTORE);
+		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
+		
 
 		String userName = "";
 		String sshKey = "";

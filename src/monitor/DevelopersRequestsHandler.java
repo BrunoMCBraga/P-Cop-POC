@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLServerSocketFactory;
 
 import exceptions.ExistentApplicationId;
 import exceptions.InsufficientMinions;
@@ -22,6 +23,7 @@ import exceptions.NonExistentApplicationId;
 import global.Ports;
 import global.ProcessBinaries;
 import minion.MonitorRequestsHandler;
+import global.Credentials;
 import global.Directories;
 import global.Messages;
 
@@ -146,10 +148,14 @@ public class DevelopersRequestsHandler implements Runnable {
 	@Override
 	public void run() {
 
+		//ServerSocket developersServerSocket = null;
+		
+		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		ServerSocket developersServerSocket = null;
+
 		Socket developerSocket = null;
 		try {
-			developersServerSocket = new ServerSocket(Ports.MONITOR_DEVELOPER_PORT);
+			developersServerSocket = ssf.createServerSocket(Ports.MONITOR_DEVELOPER_PORT);
 		} catch (IOException e) {
 			System.err.println("Failed to create server socket for developers:" + e.getMessage());
 			System.exit(1);

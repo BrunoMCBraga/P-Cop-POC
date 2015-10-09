@@ -16,6 +16,7 @@ import java.util.List;
 import exceptions.InvalidMessageException;
 import global.Ports;
 import global.ProcessBinaries;
+import global.Credentials;
 import global.Directories;
 import global.Messages;
 
@@ -130,7 +131,10 @@ public class DeveloperInterface {
 	}
 
 	public static void main(String[] args){
-		System.out.println( System.getProperty("user.dir"));
+
+		System.setProperty("javax.net.ssl.keyStore", Credentials.DEVELOPER_KEYSTORE);
+		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
+		
 		DeveloperInterface devInt = null;
 
 		String monitorHost = null;

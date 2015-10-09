@@ -8,6 +8,8 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import javax.net.ssl.SSLServerSocketFactory;
+
 import global.Messages;
 import global.Ports;
 import global.Scripts;
@@ -42,9 +44,14 @@ public class HubRequestsHandler implements Runnable {
 	@Override
 	public void run() {
 
+		//ServerSocket hubServerSocket = null;
+		
+		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		ServerSocket hubServerSocket = null;
+
+		
 		try {
-			hubServerSocket = new ServerSocket(Ports.MINION_HUB_PORT);
+			hubServerSocket = ssf.createServerSocket(Ports.MINION_HUB_PORT);
 		} catch (IOException e) {
 			System.err.println("Failed to create server socket for hub:" + e.getMessage());
 			System.exit(1);

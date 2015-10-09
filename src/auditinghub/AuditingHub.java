@@ -6,6 +6,8 @@ import java.net.Socket;
 import java.util.Hashtable;
 import java.util.Map;
 
+import javax.net.ssl.SSLServerSocketFactory;
+
 import admin.AdminInterface;
 
 import java.io.BufferedReader;
@@ -14,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 
@@ -82,6 +85,8 @@ public class AuditingHub {
 	public static void main(String[] args) throws IOException, InterruptedException{
 
 		System.out.println("Started Audting Hub");
+		System.setProperty("javax.net.ssl.keyStore", Credentials.AHUB_KEYSTORE);
+		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
 		
 		AuditingHub aH = null;
 
@@ -102,9 +107,13 @@ public class AuditingHub {
 			break;
 		}
 
+		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+		ServerSocket hubServerSocket = ssf.createServerSocket(Ports.HUB_LOCAL_PORT);
+
+		Socket newSessionSocket = null;
 	
-		ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
-		Socket newSessionSocket;
+		//ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
+		//Socket newSessionSocket;
 		Thread sessionThread;
 		
 		while(true){

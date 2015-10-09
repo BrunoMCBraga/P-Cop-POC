@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import exceptions.InvalidMessageException;
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 import global.ProcessBinaries;
@@ -162,6 +163,9 @@ public class AdminInterface {
 
 	public static void main(String[] args){
 
+		System.setProperty("javax.net.ssl.keyStore", Credentials.ADMIN_KEYSTORE);
+		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
+		
 		AdminInterface aI;
 
 		String userName;

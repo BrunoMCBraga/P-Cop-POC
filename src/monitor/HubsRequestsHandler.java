@@ -14,6 +14,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import javax.net.ssl.SSLServerSocketFactory;
+
 import java.util.Set;
 
 import exceptions.ExistentApplicationId;
@@ -123,11 +126,15 @@ public class HubsRequestsHandler implements Runnable {
 	@Override
 	public void run() {
 
+		//ServerSocket hubsServerSocket = null;
+		
+		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		ServerSocket hubsServerSocket = null;
+		
 		Socket hubSocket = null;
 
 		try {
-			hubsServerSocket = new ServerSocket(Ports.MONITOR_HUB_PORT);
+			hubsServerSocket = ssf.createServerSocket(Ports.MONITOR_HUB_PORT);
 		} catch (IOException e) {
 			System.err.println("Failed to create server socket for hub:" + e.getMessage());
 			System.exit(1);
