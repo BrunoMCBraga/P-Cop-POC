@@ -118,6 +118,11 @@ public class AdminInterface {
 		while (true){
 			try {
 				hostOutput = adminSessionReader.readLine();
+				if(hostOutput.equals(Messages.ERROR))
+				{
+					System.out.println("Failed to continue session...");
+					return false;
+				}
 				promptWriter.write(hostOutput);
 				promptWriter.newLine();
 				promptWriter.flush();

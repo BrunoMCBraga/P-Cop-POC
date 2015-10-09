@@ -109,6 +109,8 @@ public class HubsRequestsHandler implements Runnable {
 			tempTrustedSet = new HashSet<String>(trustedSet);
 			applicationHosts = this.monitor.getHosts(application.getKey());
 			tempTrustedSet.removeAll(applicationHosts);
+			if(tempTrustedSet.size() == 0)
+				throw new InsufficientMinions("No more minions available for migration");
 			spawnResult &= deployAppOnMinion(application.getKey(), trustedMinions.get(tempTrustedSet.toArray()[0]));
 			if(!spawnResult)
 				return false;
@@ -179,7 +181,7 @@ public class HubsRequestsHandler implements Runnable {
 				System.out.println("Setting:" + splittedRequest[1] + " untrusted.");
 				try {
 					this.monitor.setMinionUntrusted(splittedRequest[1]);
-					spawnReplacementInstances(this.monitor.getUntrustedMinion(splittedRequest[1]));
+					requestResult &= spawnReplacementInstances(this.monitor.getUntrustedMinion(splittedRequest[1]));
 				} catch (UnregisteredMinion | IOException | InsufficientMinions | InterruptedException | ExistentApplicationId | InvalidMessageException e) {
 					System.err.println("Unable to set untrusted:" + e.getMessage());
 					requestResult = false;

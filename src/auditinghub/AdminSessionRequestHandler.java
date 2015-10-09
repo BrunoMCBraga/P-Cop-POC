@@ -96,12 +96,12 @@ public class AdminSessionRequestHandler implements Runnable {
 
 
 	private boolean launchManagementSession() throws IOException, InvalidMessageException {
-		
+
 		//TODO:register hub
 		Socket monitorSocket = new Socket(InetAddress.getByName(this.monitorHost), Ports.MONITOR_HUB_PORT);
 		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
-		
+
 		monitorSessionWriter.write(String.format("%s %s", Messages.SET_UNTRUSTED, InetAddress.getByName(this.remoteHost).getHostAddress()));
 		monitorSessionWriter.newLine();
 		monitorSessionWriter.flush();
@@ -120,7 +120,7 @@ public class AdminSessionRequestHandler implements Runnable {
 		Socket minionSocket = new Socket(this.remoteHost, Ports.MINION_HUB_PORT);
 		BufferedReader minionSessionReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 		BufferedWriter minionSessionWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
-		
+
 		minionSessionWriter.write(Messages.PURGE);
 		minionSessionWriter.newLine();
 		minionSessionWriter.flush();
@@ -135,7 +135,7 @@ public class AdminSessionRequestHandler implements Runnable {
 		default:
 			throw new InvalidMessageException("Unexpected sync value from minion:" + minionResponse);
 		}
-		
+
 
 		launchSessionProcess();///TODO:catch exceptions here/...
 		launchLogger();
@@ -242,19 +242,28 @@ public class AdminSessionRequestHandler implements Runnable {
 				try {
 					this.adminToHubSocket.close();
 				} catch (IOException e1) {
-				
+
 				}
 			}
 		}
-		
+
 		if(launchManagementSessionResult)
-		try {
-			adminSessionWriter.write(Messages.OK);
-			adminSessionWriter.newLine();
-			adminSessionWriter.flush();
-		} catch (IOException e) {
-			System.err.println("Failed to signal session ending:" + e.getMessage());
-		}
+			try {
+				adminSessionWriter.write(Messages.OK);
+				adminSessionWriter.newLine();
+				adminSessionWriter.flush();
+			} catch (IOException e) {
+				System.err.println("Failed to signal session ending:" + e.getMessage());
+			}
+
+		else
+			try {
+				adminSessionWriter.write(Messages.ERROR);
+				adminSessionWriter.newLine();
+				adminSessionWriter.flush();
+			} catch (IOException e) {
+				System.err.println("Failed to signal session ending error:" + e.getMessage());
+			}
 
 	}
 
