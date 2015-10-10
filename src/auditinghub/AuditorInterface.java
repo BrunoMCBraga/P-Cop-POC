@@ -31,6 +31,7 @@ public class AuditorInterface {
 	private static final String UNCOMMITED_LOGS_DIR="../../Logs/Uncommited/";
 	private static final String COMMITED_LOGS_DIR="../../Logs/Commited/";
 	private static final int MONITOR_FLAG_INDEX = 0;
+	public static final String KEY_STORE_NAME = "";
 	private String monitorHost;
 
 	public AuditorInterface(String monitorHost) {

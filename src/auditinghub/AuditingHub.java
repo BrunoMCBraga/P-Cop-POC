@@ -3,15 +3,26 @@ package auditinghub;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.Hashtable;
 import java.util.Map;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 import admin.AdminInterface;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -21,7 +32,7 @@ import global.Messages;
 import global.Ports;
 
 /*
- * AudtingHub -u userName -k key -m monitor
+ * AudtingHub -u userName -k key -m monitor -h hostname
  * 
  * */
 
@@ -34,6 +45,9 @@ public class AuditingHub {
 	private static final int HUB_USERNAME_FLAG_INDEX=0;
 	private static final int HUB_KEY_FLAG_INDEX=2;
 	private static final int MONITOR_FLAG_INDEX = 4;
+	private static final int HOSTNAME_FLAG_INDEX = 6;
+	private static final String TRUSTED_ADMINS = "TrustedAdmins.jks";
+
 
 	private String hubUsername;
 	private String hubKey;
@@ -82,34 +96,55 @@ public class AuditingHub {
 		this.remoteHostThreadMap.remove(remoteHost);
 	}
 	
-	public static void main(String[] args) throws IOException, InterruptedException{
+	public static void main(String[] args) throws IOException, InterruptedException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException{
 
 		System.out.println("Started Audting Hub");
-		System.setProperty("javax.net.ssl.keyStore", Credentials.AHUB_KEYSTORE);
-		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
 		
 		AuditingHub aH = null;
 
 		String hubUserName;
 		String hubKey;
 		String monitorHost;
+		String hostName = null;
 
 		switch (args.length){
-		case 6:
+		case 8:
 			hubUserName = args[HUB_USERNAME_FLAG_INDEX+1];
 			hubKey=args[HUB_KEY_FLAG_INDEX+1];
 			monitorHost=args[MONITOR_FLAG_INDEX+1];
+			hostName=args[HOSTNAME_FLAG_INDEX+1];
 			aH = new AuditingHub(hubUserName, hubKey, monitorHost);
 			break;
 		default:
-			System.out.println("Usage: AdminInterface -a hub -h host -u userName -k key");
+			System.out.println("Usage: AudtingHub -u userName -k key -m monitor -h hostname");
 			System.exit(0);
 			break;
 		}
+		
+		//Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(hostName+".jks");
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
-		ServerSocket hubServerSocket = ssf.createServerSocket(Ports.HUB_LOCAL_PORT);
-
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(AuditingHub.TRUSTED_ADMINS);
+	    ks.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	 
+	    SSLServerSocketFactory ssf = context.getServerSocketFactory();
+   
+	    ServerSocket hubServerSocket = ssf.createServerSocket(Ports.ADMIN_SSH_PORT);
 		Socket newSessionSocket = null;
 	
 		//ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);

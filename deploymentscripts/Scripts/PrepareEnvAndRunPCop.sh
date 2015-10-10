@@ -12,15 +12,23 @@ CreateStoresScript="CreateStores.sh"
 #1.Run createallsertificates.sh
 #2.go to each directory and run the createstores.sh
 
-hostFolder="$2"
+if [ "$1" == "-M" ]
+then
+	echo "On monitor..."
+	mkdir "$BinDir"
+else
+	sleep 30s	
+fi
+
+hostFolder="$2/"
 cd "$CertificatesDir$hostFolder"
 "./$CreateStoresScript"
+cp *.jks "../../bin/"
 cd "../../../"
 
 if [ "$1" == "-M" ]
 then
 	echo "On monitor..."
-	mkdir "$BinDir"
 	javac -d "$BinDir" `find $SrcDir -name "*.java"`
 	cd "$BinDir"
 	java "monitor/Monitor" -u securepa -k ../ssh_key
@@ -44,7 +52,7 @@ then
 	sleep 1m
 	cd "$BinDir"
 	#There should be a hub registering.
-	java "auditinghub/AuditingHub" -u securepa -k ../ssh_key -m "Monitor.evaluation.tpaas.emulab.net"	
+	java "auditinghub/AuditingHub" -u securepa -k ../ssh_key -m "Monitor.evaluation.tpaas.emulab.net" -h "$hubDomain"	
 fi	
 
 
