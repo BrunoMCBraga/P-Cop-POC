@@ -2,8 +2,20 @@ package admin;
 import java.lang.ProcessBuilder;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 import exceptions.InvalidMessageException;
 import global.Credentials;
@@ -13,6 +25,7 @@ import global.ProcessBinaries;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -33,6 +46,9 @@ public class AdminInterface {
 	private static final int HOST_FLAG_INDEX=2;
 	private static final int USERNAME_FLAG_INDEX=4;
 	private static final int ADMIN_KEY_INDEX=6;
+	private static final String STORE_NAME = "AdminStore.jks";
+	private static final String KEY_STORE_NAME = "AdminStore.jks";
+	private static final String AHUBS_TRUST_STORE_NAME = "TrustedHubs.jks";
 	private String userName;
 	private String hubHost;
 	private String remoteHost;
@@ -72,7 +88,7 @@ public class AdminInterface {
 	}
 
 
-	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException {
+	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException {
 
 		boolean proxyCreationResult = startLocalProxy();
 
@@ -83,8 +99,35 @@ public class AdminInterface {
 		}
 
 		String manageRequestString = String.format("%s %s %s", Messages.MANAGE,this.userName,this.remoteHost);
+		
+	    
+	    //Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(AdminInterface.KEY_STORE_NAME);
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-		this.hubSocket =  new Socket((String)null, Ports.ADMIN_SSH_PORT);
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(AdminInterface.AHUBS_TRUST_STORE_NAME);
+	    ks.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	    
+	    SSLSocketFactory ssf = context.getSocketFactory();
+		
+		//this.hubSocket =  new Socket((String)null, Ports.ADMIN_SSH_PORT);
+		this.hubSocket = ssf.createSocket((String)null, Ports.ADMIN_SSH_PORT);
+	    
+		
 		BufferedReader adminManageSessionReader = new BufferedReader(new InputStreamReader(this.hubSocket.getInputStream()));
 		BufferedWriter adminManageSessionWriter = new BufferedWriter(new OutputStreamWriter(this.hubSocket.getOutputStream()));
 
@@ -162,9 +205,6 @@ public class AdminInterface {
 	}
 
 	public static void main(String[] args){
-
-		System.setProperty("javax.net.ssl.keyStore", Credentials.ADMIN_KEYSTORE);
-		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
 		
 		AdminInterface aI;
 
@@ -183,7 +223,7 @@ public class AdminInterface {
 			aI = new AdminInterface(userName, hubHost, remoteHost, key);
 			try {
 				commandResult = aI.manageNode();
-			} catch (IOException | InterruptedException | InvalidMessageException e) {
+			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
 				System.err.println("Failed to run management session:" + e.getMessage());
 				System.exit(1);
 			}

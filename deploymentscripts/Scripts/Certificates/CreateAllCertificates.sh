@@ -1,3 +1,9 @@
+cafilesDir="cafiles/"
+rm -rf "$cafilesDir"
+mkdir "$cafilesDir"
+touch "$cafilesDir""index.txt"
+echo 1000 > "$cafilesDir""serial"
+
 MonitorDir="Monitor.evaluation.tpaas.emulab.net"
 GenCertificateScript="GenDomainCert.sh"
 GenRootCrtScript="GenRootCrt.sh"
