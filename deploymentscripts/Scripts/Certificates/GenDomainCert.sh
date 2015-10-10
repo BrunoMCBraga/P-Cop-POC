@@ -1,9 +1,9 @@
 #!/bin/bash
  
 #Required
-domain=$1
-commonname=$domain
-signer=$2
+domain="$1"
+commonname="$domain"
+signer="$2"
  
 #Change to your company details
 country="PT"
@@ -22,7 +22,7 @@ then
 fi
 
  
-echo "Generating key request for $commonname"
+echo "Generating key request for $commonname with signer $signer"
  
 #Generate a key
 openssl genrsa -out "$domain/$domain.key" 2048
@@ -33,4 +33,4 @@ openssl req -new -key "$domain/$domain.key" -out "$domain/$domain.csr" -subj "/C
  
 #Sign request
 echo "Signing CSR"
-openssl ca -batch -config "openssl.cnf" -cert "$signer/$signer.crt" -keyfile "Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.key" -in "$domain/$domain.csr" -outdir "$domain" -out "$domain/$domain.crt"
+openssl ca -batch -config "openssl.cnf" -cert "$signer/$signer.crt" -keyfile "$signer/$signer.key" -in "$domain/$domain.csr" -outdir "$domain" -out "$domain/$domain.crt"

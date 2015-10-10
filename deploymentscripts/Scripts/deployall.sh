@@ -30,6 +30,35 @@ Src="../src/"
 rm -rf "$UploadedFilesPath$Src"
 cp -R "$Src" "$UploadedFilesPath"
 
+
+#Certificates
+CertificatesDir="$UploadedFilesPath""Certificates/"
+CaFilesDir="$CertificatesDir""cafiles/"
+CreateAllCertsScript="CreateAllCertificates.sh"
+CreateLocalStoresScript="CreateStores.sh"
+
+rm -rf "$CaFilesDir"
+mkdir "$CaFilesDir"
+touch "$CaFilesDir""index.txt"
+echo 1000 > "$CaFilesDir""serial"
+cd "$CertificatesDir"
+echo "Creating certificates."
+"./$CreateAllCertsScript"
+
+#Create local admin key stores
+cd "Admin"
+rm -rf *.jks
+"./$CreateLocalStoresScript"
+cd ..
+
+#Create local developer key stores
+cd "Developer"
+rm -rf *.jks
+"./$CreateLocalStoresScript"
+
+cd ../../../
+echo "Certificates created."
+
 #Parse hosts file
 MonitorHosts=`echo -n "$HostsFileContent" | tr '\n' ' '| grep -Pzo "(?<=\[Monitors\]).+(?=\[Minions\])"`
 MinionHosts=`echo -n "$HostsFileContent" | tr '\n' ' '| grep -Pzo "(?<=\[Minions\]).+(?=\[Hubs\])"`
@@ -60,7 +89,7 @@ for minion in ${MinionHostsArray[@]}
 do      
         echo "On minion:$minion"
 	ssh -t -i "$IdentityKey" "$Username@$minion" "sudo $UploadedFilesPath$PurgeMinionScript"
-        gnome-terminal --title=$minion -x sh -c 'ssh -t -i '"$IdentityKey $Username@$minion ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -m $minion $MonitorHostsArray"
+        gnome-terminal --title=$minion -x sh -c 'ssh -t -i '"$IdentityKey $Username@$minion ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -m $minion"
         echo "Done!"
 done
 
