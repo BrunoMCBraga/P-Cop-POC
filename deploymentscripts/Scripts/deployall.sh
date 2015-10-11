@@ -54,6 +54,7 @@ cd ..
 #Create local developer key stores
 cd "Developer"
 rm -rf *.jks
+cp *.jks ../../../../
 "./$CreateLocalStoresScript"
 
 cd ../../../

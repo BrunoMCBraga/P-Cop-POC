@@ -1,6 +1,7 @@
 package auditinghub;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -9,6 +10,12 @@ import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,15 +24,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
+
 import exceptions.InvalidMessageException;
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 import global.ProcessBinaries;
+import monitor.DevelopersRequestsHandler;
 
 //TODO:Detect mistyping errors. Since the session is not interactive, errors seem not to be being sent.
 public class AdminSessionRequestHandler implements Runnable {
 
 	private static final String UNCOMMITED_LOGS_DIR="../../Logs/Uncommited/";
+
+	private static final String MONITORS_TRUST_STORE = "TrustedMonitors.jks";
+
+	private static final String MINIONS_TRUST_STORE = "TrustedMinions.jks";
 
 	AuditingHub auditingHubInstance;
 	private Socket adminToHubSocket;
@@ -40,6 +58,10 @@ public class AdminSessionRequestHandler implements Runnable {
 	private Process auditingHubToNodeSessionProcess;
 	private Logger logger;
 
+	private String hubStore;
+
+	private String hostName;
+
 
 	public AdminSessionRequestHandler(AuditingHub auditingHubInstance,Socket adminToHubSocket, String adminUserName,String remoteHost){
 
@@ -51,6 +73,8 @@ public class AdminSessionRequestHandler implements Runnable {
 		this.hubUserName = auditingHubInstance.getHubUserName();
 		this.hubKey = auditingHubInstance.getHubKey();
 		this.monitorHost = auditingHubInstance.getMonitorHost();
+		this.hostName = auditingHubInstance.getHostName();
+		this.hubStore = auditingHubInstance.getHostName() + ".jks";
 
 	}
 
@@ -95,10 +119,32 @@ public class AdminSessionRequestHandler implements Runnable {
 	}
 
 
-	private boolean launchManagementSession() throws IOException, InvalidMessageException {
+	private boolean setNodeUntrusted() throws InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException{
+		
+		//Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-		//TODO:register hub
-		Socket monitorSocket = new Socket(InetAddress.getByName(this.monitorHost), Ports.MONITOR_HUB_PORT);
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(AdminSessionRequestHandler.MONITORS_TRUST_STORE);
+	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	 
+	    SSLSocketFactory ssf = context.getSocketFactory();
+	    
+		Socket monitorSocket = ssf.createSocket(InetAddress.getByName(this.monitorHost), Ports.MONITOR_HUB_PORT);
 		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
@@ -110,14 +156,40 @@ public class AdminSessionRequestHandler implements Runnable {
 		switch (monitorResponse) {
 		case Messages.OK:
 			System.out.println("Successful migration.");
-			break;
+			return true;
 		case Messages.ERROR:
 			return false;
 		default:
 			throw new InvalidMessageException("Unexpected sync value from monitor:" + monitorResponse);
 		}
+	}
+	
+	private boolean purgeMinion() throws IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException{
+		
+		//Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-		Socket minionSocket = new Socket(this.remoteHost, Ports.MINION_HUB_PORT);
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(AdminSessionRequestHandler.MINIONS_TRUST_STORE);
+	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	 
+	    SSLSocketFactory ssf = context.getSocketFactory();
+		
+		Socket minionSocket = ssf.createSocket(this.remoteHost, Ports.MINION_HUB_PORT);
 		BufferedReader minionSessionReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 		BufferedWriter minionSessionWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
 
@@ -129,19 +201,32 @@ public class AdminSessionRequestHandler implements Runnable {
 		switch (minionResponse) {
 		case Messages.OK:
 			System.out.println("Successful purge.");
-			break;
+			return true;
 		case Messages.ERROR:
 			return false;
 		default:
 			throw new InvalidMessageException("Unexpected sync value from minion:" + minionResponse);
 		}
+		
+	}
+	
+	private boolean launchManagementSession() throws IOException, InvalidMessageException, NoSuchAlgorithmException, CertificateException, KeyStoreException, UnrecoverableKeyException, KeyManagementException {
+
+		//TODO:register hub
+		
+		if(!setNodeUntrusted())
+			return false;
+		
+		if(!purgeMinion())
+			return false;
+		
 
 
 		launchSessionProcess();///TODO:catch exceptions here/...
 		launchLogger();
 
-		BufferedReader adminSessionReader = new BufferedReader(new InputStreamReader(adminToHubSocket.getInputStream()));
-		BufferedWriter adminSessionWriter = new BufferedWriter(new OutputStreamWriter(adminToHubSocket.getOutputStream()));
+		BufferedReader adminSessionReader = new BufferedReader(new InputStreamReader(this.adminToHubSocket.getInputStream()));
+		BufferedWriter adminSessionWriter = new BufferedWriter(new OutputStreamWriter(this.adminToHubSocket.getOutputStream()));
 
 		BufferedReader hostSessionReader = new BufferedReader(new InputStreamReader(this.auditingHubToNodeSessionProcess.getInputStream()));
 		BufferedWriter hostSessionWriter = new BufferedWriter(new OutputStreamWriter(this.auditingHubToNodeSessionProcess.getOutputStream()));
@@ -237,7 +322,7 @@ public class AdminSessionRequestHandler implements Runnable {
 				//I assume that this method will not fail. Otherwise the admin must be notified also.
 				//It returns true if session is ended orderly and false if the other nodes do not respond properly...
 				launchManagementSessionResult = launchManagementSession();
-			} catch (IOException | InvalidMessageException e) {
+			} catch (IOException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | NoSuchAlgorithmException | CertificateException | KeyStoreException e) {
 				System.err.println("Failed to launch management session:" + e.getMessage());
 				try {
 					this.adminToHubSocket.close();

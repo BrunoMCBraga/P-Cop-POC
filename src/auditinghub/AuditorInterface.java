@@ -2,6 +2,7 @@ package auditinghub;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -11,38 +12,78 @@ import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
+
 import admin.AdminInterface;
 import admin.CTRLCHandler;
 import exceptions.InvalidMessageException;
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 
 //Auditors responsible for checking the logs may use this interface to commit them. For now commit is just putting them on another folder
 //In the future will unlock untrusted nodes.
-//Usage: AuditorInterface -m monitor
+//Usage: AuditorInterface -m monitor -h hostName
 
 public class AuditorInterface {
 
 	private static final String UNCOMMITED_LOGS_DIR="../../Logs/Uncommited/";
 	private static final String COMMITED_LOGS_DIR="../../Logs/Commited/";
 	private static final int MONITOR_FLAG_INDEX = 0;
-	public static final String KEY_STORE_NAME = "";
+	private static final int HOSTNAME_FLAG_INDEX = 2;
+	private static final String MONITORS_TRUST_STORE = "TrustedMonitors.jks";
 	private String monitorHost;
+	private String hostName;
+	private String hubStore;
 
-	public AuditorInterface(String monitorHost) {
+	public AuditorInterface(String monitorHost, String hostName) {
 		this.monitorHost = monitorHost;
+		this.hostName = hostName;
+		this.hubStore = hostName + ".jks";
 	}
 	
-	private boolean setTrusted(String hostName) throws InvalidMessageException, UnknownHostException, IOException {
+	private boolean setTrusted(String hostName) throws InvalidMessageException, UnknownHostException, IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException {
 		
 		String setTrustedRequestString = String.format("%s %s", Messages.SET_TRUSTED,InetAddress.getByName(hostName).getHostAddress());
 
-		Socket monitorSocket =  new Socket(this.monitorHost, Ports.MONITOR_HUB_PORT);
+		//Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(AuditorInterface.MONITORS_TRUST_STORE);
+	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	 
+	    SSLSocketFactory ssf = context.getSocketFactory();
+	    
+		Socket monitorSocket =  ssf.createSocket(this.monitorHost, Ports.MONITOR_HUB_PORT);
 		BufferedReader setTrustedSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter setTrustedSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
@@ -67,10 +108,13 @@ public class AuditorInterface {
 		
 		AuditorInterface interfaceInstance = null;
 		String monitorHost;
+		String hostName;
+		
 		switch (args.length){
-		case 2:
+		case 4:
 			monitorHost = args[MONITOR_FLAG_INDEX+1];
-			interfaceInstance = new AuditorInterface(monitorHost);
+			hostName = args[HOSTNAME_FLAG_INDEX+1];
+			interfaceInstance = new AuditorInterface(monitorHost,hostName);
 			break;
 		default:
 			System.out.println("Usage: AuditorInterface -m monitorHost");
@@ -131,15 +175,15 @@ public class AuditorInterface {
 			    	System.out.println("No hostname for the log.");
 			    	System.exit(1);
 			    }
-			    String hostName = logName.substring(hostNameMatcher.start(1),hostNameMatcher.end(1));
+			    String hostNameToCommit = logName.substring(hostNameMatcher.start(1),hostNameMatcher.end(1));
 			    try {
-					if(!interfaceInstance.setTrusted(hostName))
+					if(!interfaceInstance.setTrusted(hostNameToCommit))
 					{
 						System.out.println("Failed to set node trusted");
 						System.exit(1);
 					}
-				} catch (InvalidMessageException e) {
-					System.err.println("Failed set node:" + hostName + " as trusted.");
+				} catch (InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
+					System.err.println("Failed set node:" + hostNameToCommit + " as trusted.");
 					System.exit(1);
 				}
 				//oldLogPath.getFileName().toString().
