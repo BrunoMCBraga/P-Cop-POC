@@ -87,7 +87,7 @@ public class DeveloperInterface {
 
 	    //KeyManagerFactory initialization
 	    System.out.println("Keystore default algorithm:" + KeyManagerFactory.getDefaultAlgorithm());
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
 	    
 	    //TrustStore initialization
@@ -98,7 +98,7 @@ public class DeveloperInterface {
 	    
 	    //TrustManagerFactory initialization
 	    System.out.println("Trust Default algorithm:" + TrustManagerFactory.getDefaultAlgorithm());
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 	    tmf.init(ts);
 	    
 	    System.out.println("Creating overall context...");

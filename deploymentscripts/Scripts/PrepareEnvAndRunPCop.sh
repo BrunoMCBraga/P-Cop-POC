@@ -12,15 +12,17 @@ CreateStoresScript="CreateStores.sh"
 #1.Run createallsertificates.sh
 #2.go to each directory and run the createstores.sh
 
+hostFolder=""
 if [ "$1" == "-M" ]
 then
 	echo "On monitor..."
 	mkdir "$BinDir"
+	hostFolder="$2/"
 else
-	sleep 30s	
+	sleep 30s
+	hostFolder="$4/"	
 fi
 
-hostFolder="$2/"
 cd "$CertificatesDir$hostFolder"
 "./$CreateStoresScript"
 cp *.jks "../../bin/"
@@ -41,17 +43,17 @@ then
 	sudo service docker start
 	sleep 1m
 	cd "$BinDir"
-	java "minion/NodeGuard" -m "$2"
+	java "minion/NodeGuard" -m "$2" -h "$4"
 	
 
 		
-elif [ "$1" == "-h" ]
+elif [ "$1" == "-a" ]
 then
 	echo "On hub..."
 	sleep 1m
 	cd "$BinDir"
 	#There should be a hub registering.
-	java "auditinghub/AuditingHub" -u securepa -k ../ssh_key -m "Monitor.evaluation.tpaas.emulab.net" -h "$2"	
+	java "auditinghub/AuditingHub" -u securepa -k ../ssh_key -m "$2" -h "$4"	
 fi	
 
 

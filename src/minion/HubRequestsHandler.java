@@ -2,14 +2,25 @@ package minion;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 import global.Scripts;
@@ -19,6 +30,23 @@ import global.Scripts;
  * */
 
 public class HubRequestsHandler implements Runnable {
+
+
+	private static final String HUBS_TRUST_STORE = "TrustedHubs.jks";
+	private NodeGuard nodeGuard;
+	private String hostName;
+	private String minionStore;
+
+
+
+
+	public HubRequestsHandler(NodeGuard nodeGuard) {
+		this.nodeGuard = nodeGuard;
+		this.hostName = nodeGuard.getHostName();
+		this.minionStore = nodeGuard.getHostName() + ".jks";
+	}
+
+
 
 
 	private boolean purgeMinion() throws IOException, InterruptedException {
@@ -46,7 +74,37 @@ public class HubRequestsHandler implements Runnable {
 
 		//ServerSocket hubServerSocket = null;
 		
-		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+		
+		SSLContext context = null;
+		try {
+			//Keystore initialization
+			KeyStore ks = KeyStore.getInstance("JKS");
+			FileInputStream keyStoreIStream = new FileInputStream(this.minionStore);
+			ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+			//KeyManagerFactory initialization
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+			kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+			//TrustStore initialization
+			KeyStore ts = KeyStore.getInstance("JKS");
+			FileInputStream trustStoreIStream = new FileInputStream(HubRequestsHandler.HUBS_TRUST_STORE);
+			ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+			//TrustManagerFactory initialization
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init(ts);
+
+			context = SSLContext.getInstance("TLS");
+			context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e1) {
+			System.err.println("Unable to create SSL server context for monitors:" + e1.getMessage());
+			System.exit(0);
+		}
+
+
+		SSLServerSocketFactory ssf = context.getServerSocketFactory();
+		
 		ServerSocket hubServerSocket = null;
 
 		

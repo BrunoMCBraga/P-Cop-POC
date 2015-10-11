@@ -127,7 +127,7 @@ public class AdminSessionRequestHandler implements Runnable {
 	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
 	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
 	    
 	    //TrustStore initialization
@@ -136,7 +136,7 @@ public class AdminSessionRequestHandler implements Runnable {
 	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 	    
 	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 	    tmf.init(ts);
 	    
 		SSLContext context = SSLContext.getInstance("TLS");
@@ -172,7 +172,7 @@ public class AdminSessionRequestHandler implements Runnable {
 	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
 	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
 	    
 	    //TrustStore initialization
@@ -181,7 +181,7 @@ public class AdminSessionRequestHandler implements Runnable {
 	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 	    
 	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 	    tmf.init(ts);
 	    
 		SSLContext context = SSLContext.getInstance("TLS");

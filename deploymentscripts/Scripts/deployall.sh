@@ -17,13 +17,13 @@ HostsFileContent=`cat "$HostsFile"`
 AppsMonitorDir="AppsMonitor"
 AppsMinionDir="AppsMinion"
 
-#Base init comand
-InitCommand="sudo rm -rf ./* && mkdir $AppsMonitorDir $AppsMinionDir"
-
 #Files to be uploaded are here. This includes scripts to be ran and source code.
 UploadedFilesPath="UploadedFiles/"
 PrepareEnvAndRunPCopScript="PrepareEnvAndRunPCop.sh"
 PurgeMinionScript="PurgeMinion.sh"
+
+#Base init comand
+InitCommand="sudo rm -rf $UploadedFilesPath $AppsMonitorDir $AppsMinionDir && mkdir $AppsMonitorDir $AppsMinionDir"
 
 #Source code path
 Src="../src/"
@@ -54,9 +54,8 @@ cd ..
 #Create local developer key stores
 cd "Developer"
 rm -rf *.jks
-cp *.jks ../../../../
 "./$CreateLocalStoresScript"
-
+cp *.jks "../../../../"
 cd ../../../
 echo "Certificates created."
 
@@ -90,14 +89,14 @@ for minion in ${MinionHostsArray[@]}
 do      
         echo "On minion:$minion"
 	ssh -t -i "$IdentityKey" "$Username@$minion" "sudo $UploadedFilesPath$PurgeMinionScript"
-        gnome-terminal --title=$minion -x sh -c 'ssh -t -i '"$IdentityKey $Username@$minion ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -m $minion"
+        gnome-terminal --title=$minion -x sh -c 'ssh -t -i '"$IdentityKey $Username@$minion ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -m ${MonitorHostsArray[0]} -h $minion"
         echo "Done!"
 done
 
 for hub in ${HubHostsArray[@]}
 do      
         echo "On minion:$hub"
-        gnome-terminal --title=$hub -x sh -c 'ssh -t -i '"$IdentityKey $Username@$hub ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -h $hub"
+        gnome-terminal --title=$hub -x sh -c 'ssh -t -i '"$IdentityKey $Username@$hub ""$UploadedFilesPath$PrepareEnvAndRunPCopScript -a ${MonitorHostsArray[0]} -h $hub"
         echo "Done!"
 done
 
