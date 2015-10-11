@@ -117,7 +117,7 @@ public class AuditorInterface {
 			interfaceInstance = new AuditorInterface(monitorHost,hostName);
 			break;
 		default:
-			System.out.println("Usage: AuditorInterface -m monitorHost");
+			System.out.println("Usage: AuditorInterface -m monitor -h hostName");
 			System.exit(0);
 			break;
 		}
