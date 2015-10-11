@@ -6,8 +6,12 @@ keytool -importkeystore -destkeystore "./AHub1.evaluation.tpaas.emulab.net.jks" 
 
 
 #TrusteStore
-keytool -import -alias "Admin" -file "../Admin/Admin.crt" -keystore "TrustedAdmins.jks" -storepass "Passss" -noprompt
-keytool -import -alias "Monitor.evaluation.tpaas.emulab.net" -file "../Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMonitors.jks" -storepass "Passss" -keypass "Passss" -noprompt
-keytool -import -alias "Minion1.evaluation.tpaas.emulab.net" -file "../Minion1.evaluation.tpaas.emulab.net/Minion1.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMinions.jks" -storepass "Passss" -keypass "Passss" -noprompt
-keytool -import -alias "Minion2.evaluation.tpaas.emulab.net" -file "../Minion2.evaluation.tpaas.emulab.net/Minion2.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMinions.jks" -storepass "Passss" -keypass "Passss" -noprompt
-keytool -import -alias "Minion3.evaluation.tpaas.emulab.net" -file "../Minion3.evaluation.tpaas.emulab.net/Minion3.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMinions.jks" -storepass "Passss" -keypass "Passss" -noprompt
+#keytool -import -alias "Monitor.evaluation.tpaas.emulab.net" -file "../Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.crt" -keystore "TrustedAdmins.jks" -storepass "Passss" -noprompt
+#keytool -import -alias "Admin" -file "../Admin/Admin.crt" -keystore "TrustedAdmins.jks" -storepass "Passss" -noprompt
+
+keytool -import -alias "Monitor.evaluation.tpaas.emulab.net" -file "../Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMonitors.jks" -storepass "Passss" -noprompt
+
+keytool -import -alias "Monitor.evaluation.tpaas.emulab.net" -file "../Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMinions.jks" -storepass "Passss" -noprompt
+keytool -import -alias "Minion1.evaluation.tpaas.emulab.net" -file "../Minion1.evaluation.tpaas.emulab.net/Minion1.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMinions.jks" -storepass "Passss"  -noprompt
+keytool -import -alias "Minion2.evaluation.tpaas.emulab.net" -file "../Minion2.evaluation.tpaas.emulab.net/Minion2.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMinions.jks" -storepass "Passss"  -noprompt
+keytool -import -alias "Minion3.evaluation.tpaas.emulab.net" -file "../Minion3.evaluation.tpaas.emulab.net/Minion3.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMinions.jks" -storepass "Passss" -noprompt

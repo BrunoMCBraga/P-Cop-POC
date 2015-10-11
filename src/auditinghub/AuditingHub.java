@@ -121,34 +121,10 @@ public class AuditingHub {
 			break;
 		}
 		
-		//Keystore initialization
-	    KeyStore ks = KeyStore.getInstance("JKS");
-	    FileInputStream keyStoreIStream = new FileInputStream(hostName+".jks");
-	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-	    
-	    //TrustStore initialization
-	    KeyStore ts = KeyStore.getInstance("JKS");
-	    FileInputStream trustStoreIStream = new FileInputStream(AuditingHub.TRUSTED_ADMINS);
-	    ks.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-	    
-	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-	    tmf.init(ts);
-	    
-		SSLContext context = SSLContext.getInstance("TLS");
-	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-	 
-	    SSLServerSocketFactory ssf = context.getServerSocketFactory();
-   
-	    ServerSocket hubServerSocket = ssf.createServerSocket(Ports.ADMIN_SSH_PORT);
-		Socket newSessionSocket = null;
 	
-		//ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
-		//Socket newSessionSocket;
+		ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
+		Socket newSessionSocket;
 		Thread sessionThread;
 		
 		while(true){

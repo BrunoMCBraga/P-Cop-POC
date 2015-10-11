@@ -3,6 +3,7 @@ package monitor;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -10,12 +11,23 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
+import auditinghub.AuditingHub;
 import exceptions.ExistentApplicationId;
 import exceptions.InsufficientMinions;
 import exceptions.InvalidMessageException;
@@ -29,14 +41,20 @@ import global.Messages;
 
 public class DevelopersRequestsHandler implements Runnable {
 
+	private static final String DEVELOPERS_TRUST_STORE = "TrustedDevelopers.jks";
+	private static final String MINIONS_TRUST_STORE = "TrustedMinions.jks";
 	private Monitor monitor;
 	private String userName;
 	private String sshKey;
+	private String monitorHostName;
+	private String monitorStore;
 
-	public DevelopersRequestsHandler(Monitor monitor, String userName, String sshKey) throws IOException {
+	public DevelopersRequestsHandler(Monitor monitor) throws IOException {
 		this.monitor = monitor;
-		this.userName = userName;
-		this.sshKey = sshKey;
+		this.userName = monitor.getUserName();
+		this.sshKey = monitor.getSSHKey();
+		this.monitorHostName = monitor.getHostName();
+		this.monitorStore = monitor.getHostName()+".jks";
 	}
 
 	private boolean sendApp(Minion minion, String appDir) throws IOException, InterruptedException{
@@ -60,7 +78,7 @@ public class DevelopersRequestsHandler implements Runnable {
 		return true;
 	}
 
-	private boolean deployApp(String appId, int instances) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId, InvalidMessageException {
+	private boolean deployApp(String appId, int instances) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException {
 
 		List<Minion> trustedMinions =  monitor.pickNTrustedMinions(instances);		
 
@@ -69,6 +87,29 @@ public class DevelopersRequestsHandler implements Runnable {
 		//TODO:check without adding. If the scp or others fail the application ID reamisn taken.
 		this.monitor.addApplication(appId, trustedMinions);
 
+		//Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.MINIONS_TRUST_STORE);
+	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	 
+	    SSLSocketFactory ssf = context.getSocketFactory();
+   	
 		Socket minionSocket =  null;
 		BufferedReader socketReader = null; 
 		BufferedWriter socketWriter = null;
@@ -81,7 +122,7 @@ public class DevelopersRequestsHandler implements Runnable {
 
 			if(!scpResult)
 				return false;
-			minionSocket = new Socket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
+			minionSocket = ssf.createSocket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
 			socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 			socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
 			socketWriter.write(String.format("%s %s",Messages.DEPLOY, appId));
@@ -107,10 +148,33 @@ public class DevelopersRequestsHandler implements Runnable {
 
 	}
 
-	private boolean deleteApp(String appId) throws UnknownHostException, IOException, NonExistentApplicationId, InvalidMessageException {
+	private boolean deleteApp(String appId) throws UnknownHostException, IOException, NonExistentApplicationId, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException {
 		
 		List<Minion> appHosts = this.monitor.getHosts(appId);
 		this.monitor.deleteApplication(appId);
+		
+		//Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(monitorStore);
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.MINIONS_TRUST_STORE);
+	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	 
+	    SSLSocketFactory ssf = context.getSocketFactory();
 
 		Socket minionSocket =  null;
 		BufferedReader socketReader = null; 
@@ -120,7 +184,7 @@ public class DevelopersRequestsHandler implements Runnable {
 
 		for(Minion m : appHosts){
 			System.out.println("Deleting app on minion:" + m.getIpAddress());
-			minionSocket = new Socket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
+			minionSocket = ssf.createSocket(m.getIpAddress(), Ports.MINION_MONITOR_PORT);
 			socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 			socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
 			socketWriter.write(String.format("%s %s",Messages.DELETE, appId));
@@ -150,10 +214,39 @@ public class DevelopersRequestsHandler implements Runnable {
 
 		//ServerSocket developersServerSocket = null;
 		
-		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
-		ServerSocket developersServerSocket = null;
+		SSLContext context = null;
+		try {
+			//Keystore initialization
+			KeyStore ks = KeyStore.getInstance("JKS");
+			FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
+		    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
+		    //KeyManagerFactory initialization
+		    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+		    
+		    //TrustStore initialization
+		    KeyStore ts = KeyStore.getInstance("JKS");
+		    FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.DEVELOPERS_TRUST_STORE);
+		    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		    
+		    //TrustManagerFactory initialization
+		    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		    tmf.init(ts);
+		    
+			context = SSLContext.getInstance("TLS");
+		    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e1) {
+			System.err.println("Unable to create SSL server context for developers:" + e1.getMessage());
+			System.exit(0);
+		}
+	    
+	 
+	    SSLServerSocketFactory ssf = context.getServerSocketFactory();
+		
+		ServerSocket developersServerSocket = null;
 		Socket developerSocket = null;
+		
 		try {
 			developersServerSocket = ssf.createServerSocket(Ports.MONITOR_DEVELOPER_PORT);
 		} catch (IOException e) {
@@ -189,6 +282,7 @@ public class DevelopersRequestsHandler implements Runnable {
 				developerRequest = socketReader.readLine();
 			} catch (IOException e) {
 				System.err.println("Error while retrieving sync message:" + e.getMessage());
+				e.printStackTrace();
 				continue;
 			}
 
@@ -201,7 +295,7 @@ public class DevelopersRequestsHandler implements Runnable {
 				System.out.println("Deploying:" + splittedRequest[2]);
 				try {
 					requestResult = deployApp(splittedRequest[2],Integer.parseInt(splittedRequest[3]));
-				} catch (InterruptedException | IOException | NumberFormatException | InsufficientMinions | ExistentApplicationId | InvalidMessageException e) {
+				} catch (InterruptedException | IOException | NumberFormatException | InsufficientMinions | ExistentApplicationId | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
 					System.err.println("Unable to deploy:" + e.getMessage());
 				}
 
@@ -211,7 +305,7 @@ public class DevelopersRequestsHandler implements Runnable {
 				System.out.println("Deleting:" + splittedRequest[2]);
 				try {
 					requestResult = deleteApp(splittedRequest[2]);
-				} catch (IOException | NonExistentApplicationId | InvalidMessageException e) {
+				} catch (IOException | NonExistentApplicationId | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
 					System.err.println("Unable to delete:"+splittedRequest[2]);
 				}
 				break;

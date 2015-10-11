@@ -31,7 +31,7 @@ then
 	echo "On monitor..."
 	javac -d "$BinDir" `find $SrcDir -name "*.java"`
 	cd "$BinDir"
-	java "monitor/Monitor" -u securepa -k ../ssh_key
+	java "monitor/Monitor" -u securepa -k ../ssh_key -h "$2"
 	
 elif [ "$1" == "-m" ]
 then
@@ -41,18 +41,17 @@ then
 	sudo service docker start
 	sleep 1m
 	cd "$BinDir"
-	java "minion/NodeGuard" -m "Monitor.evaluation.tpaas.emulab.net"
+	java "minion/NodeGuard" -m "$2"
 	
 
 		
 elif [ "$1" == "-h" ]
 then
 	echo "On hub..."
-	hubDomain="$2"
 	sleep 1m
 	cd "$BinDir"
 	#There should be a hub registering.
-	java "auditinghub/AuditingHub" -u securepa -k ../ssh_key -m "Monitor.evaluation.tpaas.emulab.net" -h "$hubDomain"	
+	java "auditinghub/AuditingHub" -u securepa -k ../ssh_key -m "Monitor.evaluation.tpaas.emulab.net" -h "$2"	
 fi	
 
 

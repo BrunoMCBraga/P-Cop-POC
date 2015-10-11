@@ -3,19 +3,30 @@ package monitor;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 import java.util.Set;
 
@@ -24,6 +35,7 @@ import exceptions.InsufficientMinions;
 import exceptions.InvalidMessageException;
 import exceptions.NonExistentApplicationId;
 import exceptions.UnregisteredMinion;
+import global.Credentials;
 import global.Directories;
 import global.Messages;
 import global.Ports;
@@ -35,14 +47,20 @@ import global.ProcessBinaries;
 
 public class HubsRequestsHandler implements Runnable {
 
+	private static final String HUBS_TRUST_STORE = "TrustedHubs.jks";
+	private static final String MINIONS_TRUST_STORE = "TrustedMinions.jks";
 	private Monitor monitor;
 	private String userName;
 	private String sshKey;
+	private String hostName;
+	private String monitorStore;
 
-	public HubsRequestsHandler(Monitor monitor,String userName, String sshKey) throws IOException {
+	public HubsRequestsHandler(Monitor monitor) throws IOException {
 		this.monitor = monitor;
-		this.userName = userName;
-		this.sshKey = sshKey;
+		this.userName = monitor.getUserName();
+		this.sshKey = monitor.getSSHKey();
+		this.hostName = monitor.getHostName();
+		this.monitorStore = monitor.getHostName()+".jks";
 	}
 	
 	private boolean sendApp(Minion minion, String appDir) throws IOException, InterruptedException{
@@ -66,7 +84,7 @@ public class HubsRequestsHandler implements Runnable {
 		return true;
 	}
 
-	private boolean deployAppOnMinion(String appId, Minion host) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId, InvalidMessageException {
+	private boolean deployAppOnMinion(String appId, Minion host) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException, UnrecoverableKeyException {
 
 		boolean scpResult = true;
 		String deployResult;
@@ -74,7 +92,30 @@ public class HubsRequestsHandler implements Runnable {
 		System.out.println("Uploading app to minion...");
 		scpResult &= sendApp(host, appId);
 		
-		Socket minionSocket =  minionSocket = new Socket(host.getIpAddress(), Ports.MINION_MONITOR_PORT);
+		//Keystore initialization
+	    KeyStore ks = KeyStore.getInstance("JKS");
+	    FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
+	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+	    //KeyManagerFactory initialization
+	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
+	    //TrustStore initialization
+	    KeyStore ts = KeyStore.getInstance("JKS");
+	    FileInputStream trustStoreIStream = new FileInputStream(HubsRequestsHandler.MINIONS_TRUST_STORE);
+	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+	    
+	    //TrustManagerFactory initialization
+	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+	    tmf.init(ts);
+	    
+		SSLContext context = SSLContext.getInstance("TLS");
+	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+	 
+	    SSLSocketFactory ssf = context.getSocketFactory();
+		
+		Socket minionSocket = ssf.createSocket(host.getIpAddress(), Ports.MINION_MONITOR_PORT);
 		BufferedReader socketReader = socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 		BufferedWriter socketWriter = socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
 		socketWriter.write(String.format("%s %s",Messages.DEPLOY, appId));
@@ -100,7 +141,7 @@ public class HubsRequestsHandler implements Runnable {
 	//2.For every app on the node, get the nodes where it is running
 	//3.Perform a difference betwwen them to obtain the nodes not running that app.
 	//4.Pick one node and start deployment.
-	private boolean spawnReplacementInstances(Minion untrustedMinion) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId, InvalidMessageException {
+	private boolean spawnReplacementInstances(Minion untrustedMinion) throws UnknownHostException, IOException, InsufficientMinions, InterruptedException, ExistentApplicationId, InvalidMessageException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
 		Map<String,Minion> trustedMinions = this.monitor.getTrustedMinions();
 		Set<String> trustedSet = trustedMinions.keySet();
 		List<Minion> applicationHosts;
@@ -128,9 +169,35 @@ public class HubsRequestsHandler implements Runnable {
 
 		//ServerSocket hubsServerSocket = null;
 		
-		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
-		ServerSocket hubsServerSocket = null;
+		SSLContext context = null;
+		try {
+			//Keystore initialization
+			KeyStore ks = KeyStore.getInstance("JKS");
+			FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
+		    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		    //KeyManagerFactory initialization
+		    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+		    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+		    
+		    //TrustStore initialization
+		    KeyStore ts = KeyStore.getInstance("JKS");
+		    FileInputStream trustStoreIStream = new FileInputStream(HubsRequestsHandler.MINIONS_TRUST_STORE);
+		    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		    
+		    //TrustManagerFactory initialization
+		    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+		    tmf.init(ts);
+		    
+			context = SSLContext.getInstance("TLS");
+		    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e1) {
+			System.err.println("Unable to create SSL server context for hubs:" + e1.getMessage());
+			System.exit(0);
+		}
 		
+		SSLServerSocketFactory ssf = context.getServerSocketFactory();
+		ServerSocket hubsServerSocket = null;
 		Socket hubSocket = null;
 
 		try {
@@ -189,7 +256,7 @@ public class HubsRequestsHandler implements Runnable {
 				try {
 					this.monitor.setMinionUntrusted(splittedRequest[1]);
 					requestResult &= spawnReplacementInstances(this.monitor.getUntrustedMinion(splittedRequest[1]));
-				} catch (UnregisteredMinion | IOException | InsufficientMinions | InterruptedException | ExistentApplicationId | InvalidMessageException e) {
+				} catch (UnregisteredMinion | IOException | InsufficientMinions | InterruptedException | ExistentApplicationId | InvalidMessageException | KeyManagementException | UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
 					System.err.println("Unable to set untrusted:" + e.getMessage());
 					requestResult = false;
 				}

@@ -21,7 +21,7 @@ import global.Credentials;
 import global.Ports;
 
 /*
- * Usage Monitor -u username -k sshKey
+ * Usage Monitor -u username -k sshKey -h hostName
  * 
  * Must expect connections from developers
  * Must expect connections from logger
@@ -35,6 +35,7 @@ public class Monitor {
 
 	private static final int USERNAME_FLAG_INDEX=0;
 	private static final int KEY_FLAG_INDEX=2;
+	private static final int HOSTNAME_FLAG_INDEX=4;
 
 	//Maps IPs to Minions. The array is for random indexing.
 	private Map<String,Minion> trustedMinions;
@@ -46,8 +47,15 @@ public class Monitor {
 	private Random trustedMinionsIndexGenerator;
 	private Map<String,List<Minion>> appsHosts;
 	private Map<String,Application> applications;
+	private String hostName;
+	private String userName;
+	private String sshKey;
 
-	public Monitor(){
+	public Monitor(String userName, String sshKey, String hostName){
+		
+		this.userName = userName;
+		this.sshKey = sshKey;
+		this.hostName = hostName;
 
 		this.trustedMinions = new Hashtable<String,Minion>();
 		this.trustedMinionsArray = this.trustedMinions.entrySet().toArray();
@@ -58,6 +66,18 @@ public class Monitor {
 
 	}
 
+	public String getSSHKey() {
+		return sshKey;
+	}
+	
+	public String getUserName() {
+		return userName;
+	}
+	
+	public String getHostName() {
+		return hostName;
+	}
+	
 	public void addNewMinion(String newMinionIpAddress){
 
 		Minion newMinion = new Minion(newMinionIpAddress);
@@ -179,29 +199,26 @@ public class Monitor {
 		System.setProperty("javax.net.ssl.keyStore", Credentials.MONITOR_KEYSTORE);
 		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
 		
-
+		Monitor monitor = null;
 		String userName = "";
 		String sshKey = "";
 
-
-		String sshArgs = "";
+		
 		switch (args.length){
-		case 4:
-			userName = args[USERNAME_FLAG_INDEX+1];
-			sshKey=args[KEY_FLAG_INDEX+1];			
+		case 6:
+			//TODO:set username and sshKey as fields
+			monitor = new Monitor(args[USERNAME_FLAG_INDEX+1], args[KEY_FLAG_INDEX+1], args[HOSTNAME_FLAG_INDEX+1]);
 			break;
 
 		default:
 			System.out.println("Usage: Monitor -u username -j sshKey");
 			System.exit(0);
-			break;
 		}
-
-		Monitor monitor = new Monitor();
+		
 		ServerSocket minionsServerSocket = null;
 
-		new Thread(new DevelopersRequestsHandler(monitor,userName,sshKey)).start();
-		new Thread(new HubsRequestsHandler(monitor,userName,sshKey)).start();
+		new Thread(new DevelopersRequestsHandler(monitor)).start();
+		new Thread(new HubsRequestsHandler(monitor)).start();
 		new Thread(new MinionsRequestsHandler(monitor)).start();
 
 		try {
@@ -220,6 +237,7 @@ public class Monitor {
 	public Map<String, Minion> getTrustedMinions() {
 		return this.trustedMinions;
 	}
+
 
 	
 

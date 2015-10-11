@@ -2,54 +2,79 @@ package monitor;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 import exceptions.UnregisteredMinion;
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 
 public class MinionsRequestsHandler implements Runnable {
 
+	private static final String MINIONS_TRUST_STORE = "TrustedMinions.jks";
 	private Monitor monitor;
+	private String hostName;
+	private String monitorStore;
 
 	public MinionsRequestsHandler(Monitor monitor) throws IOException {
 		this.monitor = monitor;
+		this.hostName = monitor.getHostName();
+		this.monitorStore = monitor.getHostName()+".jks";
 	}
 
 
-	private void processMinionRequest(Socket minionSocket) throws IOException{
-
-		BufferedReader socketReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
-		BufferedWriter socketWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
-
-		String monitorRequest= socketReader.readLine();
-		String[] splittedRequest = monitorRequest.split(" ");
-		if(splittedRequest[0].equals(Messages.REGISTER)){
-			monitor.addNewMinion(minionSocket.getInetAddress().getHostAddress());
-			System.out.println("Registered:");
-		}
-		socketWriter.write(Messages.OK);
-		socketWriter.newLine();
-		socketWriter.flush();
-
-	}
 
 
 	@Override
 	public void run() {
 
-		//ServerSocket minionsServerSocket = null;
-		//Socket minionSocket = null;
 		
-		SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+		
+		SSLContext context = null;
+		try {
+			//Keystore initialization
+			KeyStore ks = KeyStore.getInstance("JKS");
+			FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
+		    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		    //KeyManagerFactory initialization
+		    KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+		    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+		    
+		    //TrustStore initialization
+		    KeyStore ts = KeyStore.getInstance("JKS");
+		    FileInputStream trustStoreIStream = new FileInputStream(MinionsRequestsHandler.MINIONS_TRUST_STORE);
+		    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		    
+		    //TrustManagerFactory initialization
+		    TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+		    tmf.init(ts);
+		    
+			context = SSLContext.getInstance("TLS");
+		    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e1) {
+			System.err.println("Unable to create SSL server context for minions:" + e1.getMessage());
+			System.exit(0);
+		}
+		
+		SSLServerSocketFactory ssf = context.getServerSocketFactory();
 		ServerSocket minionsServerSocket = null;
-		
 		Socket minionSocket = null;
 
 		try {
