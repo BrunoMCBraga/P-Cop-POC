@@ -30,6 +30,8 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import exceptions.InvalidMessageException;
+import exceptions.RejectedConfiguration;
+import global.AttestationConstants;
 import global.Credentials;
 import global.Messages;
 import global.Ports;
@@ -292,9 +294,35 @@ public class AdminSessionRequestHandler implements Runnable {
 
 	}
 
+	private void processAttestation(Socket adminSocket) throws IOException, InvalidMessageException, RejectedConfiguration {
+
+		BufferedReader attestationReader = attestationReader = new BufferedReader(new InputStreamReader(adminSocket.getInputStream()));
+		BufferedWriter attestationWriter = attestationWriter = new BufferedWriter(new OutputStreamWriter(adminSocket.getOutputStream()));
+
+		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
+		if(attestationRequestArray[0].equals(Messages.ATTEST)){
+
+			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, AttestationConstants.QUOTE));
+
+		}
+		else 		
+			throw new InvalidMessageException("Expected:" + Messages.ATTEST + ". Received:" + attestationRequestArray[0]);
+
+
+		if(attestationReader.readLine().equals(Messages.ERROR))
+			throw new RejectedConfiguration("Admin rejected platform attestation.");
+
+	}
+	
 	@Override
 	public void run() {
 
+		try {
+			processAttestation(this.adminToHubSocket);
+		} catch (IOException | InvalidMessageException | RejectedConfiguration e2) {
+			System.err.println("Failed admin attestation:" + e2.getMessage());
+			return;
+		}
 		BufferedReader adminSessionReader;
 		BufferedWriter adminSessionWriter;
 		try {

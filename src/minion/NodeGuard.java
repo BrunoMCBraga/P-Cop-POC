@@ -21,6 +21,8 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import exceptions.InvalidMessageException;
+import exceptions.RejectedConfiguration;
+import global.AttestationConstants;
 import global.Credentials;
 import global.Messages;
 import global.Ports;
@@ -56,6 +58,26 @@ public class NodeGuard {
 		return hostName;
 	}
 
+	private void processAttestation(Socket monitorSocket) throws IOException, InvalidMessageException, RejectedConfiguration {
+
+		BufferedReader attestationReader = attestationReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
+		BufferedWriter attestationWriter = attestationWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
+
+		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
+		if(attestationRequestArray[0].equals(Messages.ATTEST)){
+
+			attestationWriter.write(String.format("%s %s", Messages.QUOTE, AttestationConstants.QUOTE));
+
+		}
+		else 		
+			throw new InvalidMessageException("Expected:" + Messages.ATTEST + ". Received:" + attestationRequestArray[0]);
+
+
+		if(attestationReader.readLine().equals(Messages.ERROR))
+			throw new RejectedConfiguration("Developer rejected platform attestation.");
+
+	}
+	
 	private boolean startMonitorHandler() throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException {
 		
 		//Keystore initialization
@@ -82,6 +104,12 @@ public class NodeGuard {
 	    SSLSocketFactory ssf = context.getSocketFactory();
 
 		Socket monitorSocket = ssf.createSocket(this.monitorHost,Ports.MONITOR_MINION_PORT);
+		try {
+			processAttestation(monitorSocket);
+		} catch (IOException | InvalidMessageException | RejectedConfiguration e) {
+			System.err.println("Minion attestation with monitor failed:" + e.getMessage());
+			System.exit(1);
+		}
 
 		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));

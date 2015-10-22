@@ -20,7 +20,11 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import exceptions.FailedAttestation;
+import exceptions.InvalidMessageException;
+import exceptions.RejectedConfiguration;
 import exceptions.UnregisteredMinion;
+import global.AttestationConstants;
 import global.Credentials;
 import global.Messages;
 import global.Ports;
@@ -39,40 +43,65 @@ public class MinionsRequestsHandler implements Runnable {
 	}
 
 
+	private void attestMinion(Socket minionSocket) throws IOException, InvalidMessageException, FailedAttestation {
 
+		BufferedReader minionAttestationReader = minionAttestationReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
+		BufferedWriter minionAttestationWriter = minionAttestationWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
+
+		minionAttestationWriter.write(String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE));
+		minionAttestationWriter.newLine();
+		minionAttestationWriter.flush();
+
+		String[] splittedResponse = minionAttestationReader.readLine().split(" ");
+
+		if(splittedResponse[0].equals(Messages.QUOTE))
+			if(splittedResponse[1].equals(AttestationConstants.QUOTE)){
+				minionAttestationWriter.write(Messages.OK);
+				return;
+			}
+		else 
+			throw new InvalidMessageException("Expected:" + Messages.QUOTE + ".Received:" + splittedResponse[0]);
+
+		minionAttestationWriter.write(Messages.ERROR);
+		minionAttestationWriter.newLine();
+		minionAttestationWriter.flush();
+		throw new FailedAttestation("Minion has config:" + splittedResponse[1] + ". Expected" + AttestationConstants.QUOTE);
+
+
+	}
 
 	@Override
 	public void run() {
 
-		
-		
+
+
 		SSLContext context = null;
 		try {
 			//Keystore initialization
 			KeyStore ks = KeyStore.getInstance("JKS");
 			FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
-		    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+			ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-		    //KeyManagerFactory initialization
-		    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-		    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-		    
-		    //TrustStore initialization
-		    KeyStore ts = KeyStore.getInstance("JKS");
-		    FileInputStream trustStoreIStream = new FileInputStream(MinionsRequestsHandler.MINIONS_TRUST_STORE);
-		    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-		    
-		    //TrustManagerFactory initialization
-		    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-		    tmf.init(ts);
-		    
+			//KeyManagerFactory initialization
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+			kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+			//TrustStore initialization
+			KeyStore ts = KeyStore.getInstance("JKS");
+			FileInputStream trustStoreIStream = new FileInputStream(MinionsRequestsHandler.MINIONS_TRUST_STORE);
+			ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+			//TrustManagerFactory initialization
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init(ts);
+
 			context = SSLContext.getInstance("TLS");
-		    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+			context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e1) {
 			System.err.println("Unable to create SSL server context for minions:" + e1.getMessage());
 			System.exit(0);
 		}
-		
+
 		SSLServerSocketFactory ssf = context.getServerSocketFactory();
 		ServerSocket minionsServerSocket = null;
 		Socket minionSocket = null;
@@ -90,6 +119,13 @@ public class MinionsRequestsHandler implements Runnable {
 				minionSocket = minionsServerSocket.accept();
 			} catch (IOException e) {
 				System.err.println("Error while accepting minion connection:" + e.getMessage());
+				continue;
+			}
+
+			try {
+				attestMinion(minionSocket);
+			} catch (IOException | InvalidMessageException | FailedAttestation e1) {
+				System.err.println("Failed to attest minion:" + e1.getMessage());
 				continue;
 			}
 

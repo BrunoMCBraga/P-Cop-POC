@@ -1,5 +1,7 @@
 sudo yum -y update
+sudo yum -y install tpm-tools trousers
 sudo yum -y install java-1.8.0-openjdk-src.x86_64 && sudo yum -y install java-1.8.0-openjdk-headless.x86_64  && sudo yum -y install java-1.8.0-openjdk-devel.x86_64
+
 
 UploadedFilesDir="UploadedFiles/"
 SrcDir="$UploadedFilesDir""src/"
@@ -7,6 +9,10 @@ BinDir="$UploadedFilesDir""bin/"
 CertificatesDir="$UploadedFilesDir""Certificates/"
 CreateStoresScript="CreateStores.sh"
 
+
+sudo modprobe tpm
+sudo modprobe tpm_bios tpm_infineon tpm_nsc tpm_tis
+#service tcsd start
 
 #Certficates:
 #1.Run createallsertificates.sh

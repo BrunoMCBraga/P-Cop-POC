@@ -32,9 +32,11 @@ import exceptions.ExistentApplicationId;
 import exceptions.InsufficientMinions;
 import exceptions.InvalidMessageException;
 import exceptions.NonExistentApplicationId;
+import exceptions.RejectedConfiguration;
 import global.Ports;
 import global.ProcessBinaries;
 import minion.MonitorRequestsHandler;
+import global.AttestationConstants;
 import global.Credentials;
 import global.Directories;
 import global.Messages;
@@ -83,33 +85,33 @@ public class DevelopersRequestsHandler implements Runnable {
 		List<Minion> trustedMinions =  monitor.pickNTrustedMinions(instances);		
 
 		//this assumes the deployment works. the error codes returned by process waitfor are not correct and therefore do not allow correct verification.AFAIK
-		
+
 		//TODO:check without adding. If the scp or others fail the application ID reamisn taken.
 		this.monitor.addApplication(appId, trustedMinions);
 
 		//Keystore initialization
-	    KeyStore ks = KeyStore.getInstance("JKS");
-	    FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
-	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-	    
-	    //TrustStore initialization
-	    KeyStore ts = KeyStore.getInstance("JKS");
-	    FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.MINIONS_TRUST_STORE);
-	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-	    
-	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-	    tmf.init(ts);
-	    
+		//KeyManagerFactory initialization
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+		//TrustStore initialization
+		KeyStore ts = KeyStore.getInstance("JKS");
+		FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.MINIONS_TRUST_STORE);
+		ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//TrustManagerFactory initialization
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(ts);
+
 		SSLContext context = SSLContext.getInstance("TLS");
-	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-	 
-	    SSLSocketFactory ssf = context.getSocketFactory();
-   	
+		context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+		SSLSocketFactory ssf = context.getSocketFactory();
+
 		Socket minionSocket =  null;
 		BufferedReader socketReader = null; 
 		BufferedWriter socketWriter = null;
@@ -128,9 +130,9 @@ public class DevelopersRequestsHandler implements Runnable {
 			socketWriter.write(String.format("%s %s",Messages.DEPLOY, appId));
 			socketWriter.newLine();
 			socketWriter.flush();
-			
+
 			deployResult = socketReader.readLine();
-			
+
 			switch(deployResult){
 			case Messages.OK:
 				continue;
@@ -149,32 +151,32 @@ public class DevelopersRequestsHandler implements Runnable {
 	}
 
 	private boolean deleteApp(String appId) throws UnknownHostException, IOException, NonExistentApplicationId, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException {
-		
+
 		List<Minion> appHosts = this.monitor.getHosts(appId);
 		this.monitor.deleteApplication(appId);
-		
-		//Keystore initialization
-	    KeyStore ks = KeyStore.getInstance("JKS");
-	    FileInputStream keyStoreIStream = new FileInputStream(monitorStore);
-	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-	    
-	    //TrustStore initialization
-	    KeyStore ts = KeyStore.getInstance("JKS");
-	    FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.MINIONS_TRUST_STORE);
-	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-	    
-	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-	    tmf.init(ts);
-	    
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(monitorStore);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//KeyManagerFactory initialization
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+		//TrustStore initialization
+		KeyStore ts = KeyStore.getInstance("JKS");
+		FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.MINIONS_TRUST_STORE);
+		ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//TrustManagerFactory initialization
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(ts);
+
 		SSLContext context = SSLContext.getInstance("TLS");
-	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-	 
-	    SSLSocketFactory ssf = context.getSocketFactory();
+		context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+		SSLSocketFactory ssf = context.getSocketFactory();
 
 		Socket minionSocket =  null;
 		BufferedReader socketReader = null; 
@@ -190,9 +192,9 @@ public class DevelopersRequestsHandler implements Runnable {
 			socketWriter.write(String.format("%s %s",Messages.DELETE, appId));
 			socketWriter.newLine();
 			socketWriter.flush();
-		
+
 			deleteResult = socketReader.readLine();
-			
+
 			switch(deleteResult){
 			case Messages.OK:
 				continue;
@@ -207,46 +209,65 @@ public class DevelopersRequestsHandler implements Runnable {
 	}
 
 
+	private void processAttestation(Socket developerSocket) throws IOException, InvalidMessageException, RejectedConfiguration {
+
+		BufferedReader attestationReader = attestationReader = new BufferedReader(new InputStreamReader(developerSocket.getInputStream()));
+		BufferedWriter attestationWriter = attestationWriter = new BufferedWriter(new OutputStreamWriter(developerSocket.getOutputStream()));
+
+		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
+		if(attestationRequestArray[0].equals(Messages.ATTEST)){
+
+			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, AttestationConstants.QUOTE));
+
+		}
+		else 		
+			throw new InvalidMessageException("Expected:" + Messages.ATTEST + ". Received:" + attestationRequestArray[0]);
+
+
+		if(attestationReader.readLine().equals(Messages.ERROR))
+			throw new RejectedConfiguration("Developer rejected platform attestation.");
+
+	}
 
 	//TODO: Maybe create threads to answer clients in parallel.
 	@Override
 	public void run() {
 
 		//ServerSocket developersServerSocket = null;
-		
+
 		SSLContext context = null;
 		try {
 			//Keystore initialization
 			KeyStore ks = KeyStore.getInstance("JKS");
 			FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
-		    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+			ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-		    //KeyManagerFactory initialization
-		    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-		    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-		    
-		    //TrustStore initialization
-		    KeyStore ts = KeyStore.getInstance("JKS");
-		    FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.DEVELOPERS_TRUST_STORE);
-		    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-		    
-		    //TrustManagerFactory initialization
-		    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-		    tmf.init(ts);
-		    
+			//KeyManagerFactory initialization
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+			kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+			//TrustStore initialization
+			KeyStore ts = KeyStore.getInstance("JKS");
+			FileInputStream trustStoreIStream = new FileInputStream(DevelopersRequestsHandler.DEVELOPERS_TRUST_STORE);
+			ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+			//TrustManagerFactory initialization
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init(ts);
+
 			context = SSLContext.getInstance("TLS");
-		    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+			context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e1) {
 			System.err.println("Unable to create SSL server context for developers:" + e1.getMessage());
 			System.exit(0);
 		}
-	    
-	 
-	    SSLServerSocketFactory ssf = context.getServerSocketFactory();
-		
+
+
+		SSLServerSocketFactory ssf = context.getServerSocketFactory();
+
 		ServerSocket developersServerSocket = null;
 		Socket developerSocket = null;
-		
+
 		try {
 			developersServerSocket = ssf.createServerSocket(Ports.MONITOR_DEVELOPER_PORT);
 		} catch (IOException e) {
@@ -276,6 +297,13 @@ public class DevelopersRequestsHandler implements Runnable {
 				continue;
 			}
 
+			try {
+				processAttestation(developerSocket);
+			} catch (IOException | InvalidMessageException | RejectedConfiguration e1) {
+				System.err.println("Monitor attestation failed on developer request:" + e1.getMessage());
+				continue;
+			}
+
 			String developerRequest = null;
 
 			try {
@@ -300,7 +328,7 @@ public class DevelopersRequestsHandler implements Runnable {
 				}
 
 				break;
-			//DELETE_APP user appId
+				//DELETE_APP user appId
 			case Messages.DELETE_APP:
 				System.out.println("Deleting:" + splittedRequest[2]);
 				try {
@@ -337,6 +365,8 @@ public class DevelopersRequestsHandler implements Runnable {
 			}
 		}
 	}
+
+
 
 
 }

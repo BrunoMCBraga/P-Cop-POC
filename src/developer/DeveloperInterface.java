@@ -31,9 +31,11 @@ import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 
 import admin.AdminInterface;
+import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
 import global.Ports;
 import global.ProcessBinaries;
+import global.AttestationConstants;
 import global.Credentials;
 import global.Directories;
 import global.Messages;
@@ -77,60 +79,91 @@ public class DeveloperInterface {
 
 	}
 
-	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException{
+	private void attestMonitor(Socket monitorSocket) throws IOException, FailedAttestation, InvalidMessageException {
+		BufferedReader monitorAttestationReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
+		BufferedWriter monitorAttestationWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
-		 //Keystore initialization
+		//ATEST NONCE
+		monitorAttestationWriter.write(String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE));
+		monitorAttestationWriter.newLine();
+		monitorAttestationWriter.flush();
+
+		String quote = monitorAttestationReader.readLine();
+		String[] splittedMessage = quote.split(" ");
+
+		//QUOTE QUOTE TRUSTED_QUOTE
+		if(splittedMessage[0].equals(Messages.QUOTE)){
+			if(splittedMessage[1].equals(splittedMessage[2])){
+				monitorAttestationWriter.write(Messages.OK);
+				return;
+			}
+		}
+		else throw new InvalidMessageException("Expected:" + Messages.QUOTE + ". Received:" + splittedMessage[0]);
+
+		monitorAttestationWriter.write(Messages.ERROR);
+		monitorAttestationWriter.newLine();
+		monitorAttestationWriter.flush();
+		throw new FailedAttestation("Monitor has config:" + splittedMessage[1] + ". Expected" + splittedMessage[2]);
+	}
+
+
+	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException, FailedAttestation{
+
+		//Keystore initialization
 		System.out.println("Creating keys context...");
 		KeyStore ks = KeyStore.getInstance("JKS");
-	    FileInputStream keyStoreIStream = new FileInputStream(DeveloperInterface.ADMIN_STORE_NAME);
-	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		FileInputStream keyStoreIStream = new FileInputStream(DeveloperInterface.ADMIN_STORE_NAME);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-	    //KeyManagerFactory initialization
-	    System.out.println("Keystore default algorithm:" + KeyManagerFactory.getDefaultAlgorithm());
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-	    
-	    //TrustStore initialization
-	    System.out.println("Creating trust context...");
-	    KeyStore ts = KeyStore.getInstance("JKS");
-	    FileInputStream trustStoreIStream = new FileInputStream(DeveloperInterface.MONITORS_TRUST_STORE_NAME);
-	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-	    
-	    //TrustManagerFactory initialization
-	    System.out.println("Trust Default algorithm:" + TrustManagerFactory.getDefaultAlgorithm());
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-	    tmf.init(ts);
-	    
-	    System.out.println("Creating overall context...");
+		//KeyManagerFactory initialization
+		System.out.println("Keystore default algorithm:" + KeyManagerFactory.getDefaultAlgorithm());
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+		//TrustStore initialization
+		System.out.println("Creating trust context...");
+		KeyStore ts = KeyStore.getInstance("JKS");
+		FileInputStream trustStoreIStream = new FileInputStream(DeveloperInterface.MONITORS_TRUST_STORE_NAME);
+		ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//TrustManagerFactory initialization
+		System.out.println("Trust Default algorithm:" + TrustManagerFactory.getDefaultAlgorithm());
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(ts);
+
+		System.out.println("Creating overall context...");
 		SSLContext context = SSLContext.getInstance("TLS");
-	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-	    
-	    for(KeyManager tM : kmf.getKeyManagers()){
-	    	System.out.println("One key...");
-	    	X509Certificate[] certs = ((X509ExtendedKeyManager)tM).getCertificateChain("developer");
-	    	System.out.println("Key:" + certs.length);
-	    	for(X509Certificate cert : certs)
-	    		System.out.println("Certificate key:" + cert.getPublicKey().toString());
+		context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
-	    }
+		for(KeyManager tM : kmf.getKeyManagers()){
+			System.out.println("One key...");
+			X509Certificate[] certs = ((X509ExtendedKeyManager)tM).getCertificateChain("developer");
+			System.out.println("Key:" + certs.length);
+			for(X509Certificate cert : certs)
+				System.out.println("Certificate key:" + cert.getPublicKey().toString());
 
-	    for(TrustManager tM : tmf.getTrustManagers()){
-	    	System.out.println("One trusted...");
-	    	X509Certificate[] certs = ((X509ExtendedTrustManager)tM).getAcceptedIssuers();
-	    	System.out.println("Authorized:" + certs.length);
-	    	for(X509Certificate cert : certs)
-	    		System.out.println("Certificate key:" + cert.getPublicKey().toString());
+		}
 
-	    }
-	    
-	    SSLSocketFactory ssf = context.getSocketFactory();
-		
+		for(TrustManager tM : tmf.getTrustManagers()){
+			System.out.println("One trusted...");
+			X509Certificate[] certs = ((X509ExtendedTrustManager)tM).getAcceptedIssuers();
+			System.out.println("Authorized:" + certs.length);
+			for(X509Certificate cert : certs)
+				System.out.println("Certificate key:" + cert.getPublicKey().toString());
+
+		}
+
+		SSLSocketFactory ssf = context.getSocketFactory();
+
 		System.out.println("Connecting");
 		Socket monitorSocket = ssf.createSocket(this.monitorHost, Ports.MONITOR_DEVELOPER_PORT);
 		System.out.println("Connected");
+
+		attestMonitor(monitorSocket);
+
 		BufferedReader monitorReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
-		
+
 		System.out.println("Writing message...");
 
 		monitorWriter.write(message);
@@ -146,17 +179,17 @@ public class DeveloperInterface {
 		default:
 			throw new InvalidMessageException("Invalide response:" + response);
 		}
-		
+
 	}
 
-	private boolean deleteApp() throws UnknownHostException, IOException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+	private boolean deleteApp() throws UnknownHostException, IOException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation {
 		Path appPath = FileSystems.getDefault().getPath(appDir);
 		boolean messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.DELETE_APP,this.userName,appPath.getFileName().toString()));
-	
+
 		if(!messageResult)
 			return false;
 		return true;
-		
+
 	}
 
 	private boolean sendApp() throws IOException, InterruptedException{
@@ -179,29 +212,29 @@ public class DeveloperInterface {
 		}
 		return true;
 	}
-	
-	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+
+	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation {
 
 		System.out.println("Sending app to monitor....");
 		boolean sendResult= sendApp();
-		
+
 
 		if(!sendResult)
 			return false;
-		
+
 
 		Path appPath = FileSystems.getDefault().getPath(this.appDir);
 		boolean messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s %d", Messages.NEW_APP,this.userName,appPath.getFileName().toString(),this.instances));
-		
+
 		if(!messageResult)
 			return false;
 		return true;
-			
-		
+
+
 	}
 
 	public static void main(String[] args){
-		
+
 		DeveloperInterface devInt = null;
 
 		String monitorHost = null;
@@ -221,7 +254,7 @@ public class DeveloperInterface {
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir,Integer.parseInt(instances));
 			try {
 				commandResult = devInt.deployApp();
-			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
+			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
 				System.err.println("Failed to deploy app:" + e.getMessage());
 				e.printStackTrace();
 			}
@@ -234,7 +267,7 @@ public class DeveloperInterface {
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir);
 			try {
 				commandResult = devInt.deleteApp();
-			} catch (IOException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
+			} catch (IOException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
 				System.err.println("Failed to delete app:" + e.getMessage());
 
 			}
@@ -245,7 +278,7 @@ public class DeveloperInterface {
 			break;
 
 		}
-		
+
 		if(commandResult)
 		{
 			System.out.println("Success.");

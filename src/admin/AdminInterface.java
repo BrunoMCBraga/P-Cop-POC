@@ -9,8 +9,9 @@ import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
 
-
+import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
+import global.AttestationConstants;
 import global.Messages;
 import global.Ports;
 import global.ProcessBinaries;
@@ -51,6 +52,33 @@ public class AdminInterface {
 		this.key = key;
 	}
 
+	private void attestLogger(Socket loggerSocket) throws IOException, FailedAttestation, InvalidMessageException {
+		BufferedReader loggerAttestationReader = new BufferedReader(new InputStreamReader(loggerSocket.getInputStream()));
+		BufferedWriter loggerAttestationWriter = new BufferedWriter(new OutputStreamWriter(loggerSocket.getOutputStream()));
+
+		//ATEST NONCE
+		loggerAttestationWriter.write(String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE));
+		loggerAttestationWriter.newLine();
+		loggerAttestationWriter.flush();
+
+		String quote = loggerAttestationReader.readLine();
+		String[] splittedMessage = quote.split(" ");
+
+		//QUOTE QUOTE TRUSTED_QUOTE
+		if(splittedMessage[0].equals(Messages.QUOTE)){
+			if(splittedMessage[1].equals(splittedMessage[2])){
+				loggerAttestationWriter.write(Messages.OK);
+				return;
+			}
+		}
+		else throw new InvalidMessageException("Expected:" + Messages.QUOTE + ". Received:" + splittedMessage[0]);
+
+		loggerAttestationWriter.write(Messages.ERROR);
+		loggerAttestationWriter.newLine();
+		loggerAttestationWriter.flush();
+		throw new FailedAttestation("Logger has config:" + splittedMessage[1] + ". Expected" + splittedMessage[2]);
+	}
+
 
 
 	private boolean startLocalProxy() throws IOException, InterruptedException{
@@ -76,7 +104,7 @@ public class AdminInterface {
 	}
 
 
-	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException {
+	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException, FailedAttestation {
 
 		boolean proxyCreationResult = startLocalProxy();
 
@@ -89,6 +117,8 @@ public class AdminInterface {
 		String manageRequestString = String.format("%s %s %s", Messages.MANAGE,this.userName,this.remoteHost);
 		this.hubSocket =  new Socket((String)null, Ports.ADMIN_SSH_PORT);
 	    
+		attestLogger(this.hubSocket);
+
 		
 		BufferedReader adminManageSessionReader = new BufferedReader(new InputStreamReader(this.hubSocket.getInputStream()));
 		BufferedWriter adminManageSessionWriter = new BufferedWriter(new OutputStreamWriter(this.hubSocket.getOutputStream()));
@@ -185,7 +215,7 @@ public class AdminInterface {
 			aI = new AdminInterface(userName, hubHost, remoteHost, key);
 			try {
 				commandResult = aI.manageNode();
-			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
+			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
 				System.err.println("Failed to run management session:" + e.getMessage());
 				e.printStackTrace();
 				System.exit(1);

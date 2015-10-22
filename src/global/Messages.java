@@ -30,6 +30,8 @@ public class Messages {
 	public static final String DEPLOY="DEPLOY";
 	public static final String DELETE="DELETE";
 
+	public static final String ATTEST = "ATTEST";
+	public static final String QUOTE = "QUOTE";
 
 
 
