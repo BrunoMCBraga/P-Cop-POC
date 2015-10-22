@@ -1,6 +1,6 @@
 sudo yum -y update
-sudo yum -y install tpm-tools trousers
 sudo yum -y install java-1.8.0-openjdk-src.x86_64 && sudo yum -y install java-1.8.0-openjdk-headless.x86_64  && sudo yum -y install java-1.8.0-openjdk-devel.x86_64
+sudo yum -y install tpm-tools trousers
 
 
 UploadedFilesDir="UploadedFiles/"

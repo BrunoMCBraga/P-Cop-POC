@@ -17,13 +17,15 @@ HostsFileContent=`cat "$HostsFile"`
 AppsMonitorDir="AppsMonitor"
 AppsMinionDir="AppsMinion"
 
+LogsDir="Logs/"
+
 #Files to be uploaded are here. This includes scripts to be ran and source code.
 UploadedFilesPath="UploadedFiles/"
 PrepareEnvAndRunPCopScript="PrepareEnvAndRunPCop.sh"
 PurgeMinionScript="PurgeMinion.sh"
 
 #Base init comand
-InitCommand="sudo rm -rf $UploadedFilesPath $AppsMonitorDir $AppsMinionDir && mkdir $AppsMonitorDir $AppsMinionDir"
+InitCommand="sudo rm -rf $UploadedFilesPath $AppsMonitorDir $AppsMinionDir $LogsDir && mkdir $AppsMonitorDir $AppsMinionDir $LogsDir"
 
 #Source code path
 Src="../src/"
