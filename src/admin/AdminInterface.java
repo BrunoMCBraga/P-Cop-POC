@@ -1,10 +1,17 @@
 package admin;
 import java.lang.ProcessBuilder;
 import java.net.Socket;
+import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,12 +19,14 @@ import java.util.List;
 import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
 import global.AttestationConstants;
+import global.Credentials;
 import global.Messages;
 import global.Ports;
 import global.ProcessBinaries;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -33,6 +42,7 @@ import java.lang.Process;
 //TODO:detect broken connections
 public class AdminInterface {
 
+	private static final String AUDITORS_TRUST_STORE_NAME = "TrustedAuditors.jks";
 	private static final String EXIT_COMMAND="exit";
 	private static final int HUB_FLAG_INDEX=0;
 	private static final int HOST_FLAG_INDEX=2;
@@ -52,7 +62,19 @@ public class AdminInterface {
 		this.key = key;
 	}
 
-	private void attestLogger(Socket loggerSocket) throws IOException, FailedAttestation, InvalidMessageException {
+	private void attestLogger(Socket loggerSocket) throws IOException, FailedAttestation, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, InvalidKeyException, SignatureException {
+		
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.AUDITORS_TRUST_STORE_NAME);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		Certificate auditorCert = ks.getCertificate("Auditor");
+		keyStoreIStream.close();
+		
+		Signature rsa = Signature.getInstance("SHA1withRSA"); 
+		rsa.initVerify(auditorCert);
+		
+		
 		BufferedReader loggerAttestationReader = new BufferedReader(new InputStreamReader(loggerSocket.getInputStream()));
 		BufferedWriter loggerAttestationWriter = new BufferedWriter(new OutputStreamWriter(loggerSocket.getOutputStream()));
 
@@ -64,9 +86,11 @@ public class AdminInterface {
 		String quote = loggerAttestationReader.readLine();
 		String[] splittedMessage = quote.split(" ");
 		
+		rsa.update(splittedMessage[1].getBytes());
+		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
-			if(splittedMessage[1].equals(splittedMessage[2])){
+			if(rsa.verify(splittedMessage[2].getBytes())){
 				System.out.println("Monitor has trusted configuration.");
 				loggerAttestationWriter.write(Messages.OK);
 				loggerAttestationWriter.newLine();
@@ -108,7 +132,7 @@ public class AdminInterface {
 	}
 
 
-	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException, FailedAttestation {
+	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException, FailedAttestation, InvalidKeyException, SignatureException {
 
 		boolean proxyCreationResult = startLocalProxy();
 
@@ -220,7 +244,7 @@ public class AdminInterface {
 			aI = new AdminInterface(userName, hubHost, remoteHost, key);
 			try {
 				commandResult = aI.manageNode();
-			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
+			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException e) {
 				System.err.println("Failed to run management session:" + e.getMessage());
 				System.exit(1);
 			}

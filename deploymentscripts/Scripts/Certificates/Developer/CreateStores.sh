@@ -7,3 +7,4 @@ keytool -importkeystore -destkeystore "./Developer.jks" -srckeystore "./Develope
 #TrusteStore
 keytool -import -alias "Monitor.evaluation.tpaas.emulab.net" -file "../Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.crt" -keystore "TrustedMonitors.jks" -storepass "Passss"  -noprompt
 
+keytool -import -alias "Auditor" -file "../Auditor/Auditor.crt" -keystore "TrustedAuditors.jks" -storepass "Passss"  -noprompt

@@ -11,11 +11,16 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -56,6 +61,7 @@ public class DeveloperInterface {
 	private static final int INSTANCES_FLAG_INDEX=8;
 	private static final int DELETE_APP_FLAG_INDEX=8;
 	private static final String ADMIN_STORE_NAME = "Developer.jks";
+	private static final String AUDITORS_TRUST_STORE_NAME = "TrustedAuditors.jks";
 	private static final String MONITORS_TRUST_STORE_NAME = "TrustedMonitors.jks";
 
 	private String monitorHost;
@@ -79,7 +85,18 @@ public class DeveloperInterface {
 
 	}
 
-	private void attestMonitor(Socket monitorSocket) throws IOException, FailedAttestation, InvalidMessageException {
+	private void attestMonitor(Socket monitorSocket) throws IOException, FailedAttestation, InvalidMessageException, SignatureException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException {
+
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.AUDITORS_TRUST_STORE_NAME);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		Certificate auditorCert = ks.getCertificate("Auditor");
+		keyStoreIStream.close();
+
+		Signature rsa = Signature.getInstance("SHA1withRSA"); 
+		rsa.initVerify(auditorCert);
+
 		BufferedReader monitorAttestationReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorAttestationWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
@@ -91,15 +108,17 @@ public class DeveloperInterface {
 		String quote = monitorAttestationReader.readLine();
 		String[] splittedMessage = quote.split(" ");
 
+		rsa.update(splittedMessage[1].getBytes());
+
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
-			if(splittedMessage[1].equals(splittedMessage[2])){
+			if(rsa.verify(splittedMessage[2].getBytes())){
 				monitorAttestationWriter.write(Messages.OK);
 				monitorAttestationWriter.newLine();
 				monitorAttestationWriter.flush();
 				return;
 			}
-		
+
 		}
 		else throw new InvalidMessageException("Expected:" + Messages.QUOTE + ". Received:" + splittedMessage[0]);
 
@@ -110,7 +129,7 @@ public class DeveloperInterface {
 	}
 
 
-	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException, FailedAttestation{
+	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException, FailedAttestation, InvalidKeyException, SignatureException{
 
 		//Keystore initialization
 		System.out.println("Creating keys context...");
@@ -174,7 +193,7 @@ public class DeveloperInterface {
 
 		if(!sendResult)
 			return sendResult;
-		
+
 		BufferedReader monitorReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
@@ -196,7 +215,7 @@ public class DeveloperInterface {
 
 	}
 
-	private boolean deleteApp() throws UnknownHostException, IOException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation {
+	private boolean deleteApp() throws UnknownHostException, IOException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation, InvalidKeyException, SignatureException {
 		Path appPath = FileSystems.getDefault().getPath(appDir);
 		boolean messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.DELETE_APP,this.userName,appPath.getFileName().toString()));
 
@@ -227,7 +246,7 @@ public class DeveloperInterface {
 		return true;
 	}
 
-	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation {
+	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation, InvalidKeyException, SignatureException {
 
 		System.out.println("Sending app to monitor....");		
 
@@ -262,7 +281,7 @@ public class DeveloperInterface {
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir,Integer.parseInt(instances));
 			try {
 				commandResult = devInt.deployApp();
-			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
+			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException e) {
 				System.err.println("Failed to deploy app:" + e.getMessage());
 				System.exit(1);
 			}
@@ -275,7 +294,7 @@ public class DeveloperInterface {
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir);
 			try {
 				commandResult = devInt.deleteApp();
-			} catch (IOException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
+			} catch (IOException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException e) {
 				System.err.println("Failed to delete app:" + e.getMessage());
 
 			}

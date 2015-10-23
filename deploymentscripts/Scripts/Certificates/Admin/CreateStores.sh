@@ -7,6 +7,5 @@
 #keytool -importkeystore -destkeystore "AdminStore.jks" -srckeystore "AdminStore.p12" -srcstorepass "Passss" -srcstoretype "pkcs12" -alias "Admin" -storepass "Passss" -keypass "Passss" -noprompt
 
 #TrusteStore
-#keytool -import -alias "Monitor.evaluation.tpaas.emulab.net" -file "../Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.crt" -keystore "TrustedHubs.jks" -storepass "Passss" -noprompt
-#keytool -import -alias "AHub1.evaluation.tpaas.emulab.net" -file "../AHub1.evaluation.tpaas.emulab.net/AHub1.evaluation.tpaas.emulab.net.crt" -keystore "TrustedHubs.jks" -storepass "Passss" -noprompt
+keytool -import -alias "Auditor" -file "../Auditor/Auditor.crt" -keystore "TrustedAuditors.jks" -storepass "Passss"  -noprompt
 

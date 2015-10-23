@@ -51,7 +51,9 @@ echo "Creating certificates."
 cd "Admin"
 rm -rf *.jks
 "./$CreateLocalStoresScript"
+cp *.jks "../../../../"
 cd ..
+echo "Stores created for admin."
 
 #Create local developer key stores
 cd "Developer"
@@ -59,7 +61,7 @@ rm -rf *.jks
 "./$CreateLocalStoresScript"
 cp *.jks "../../../../"
 cd ..
-echo "Certificates created for developer."
+echo "Stores created for developer."
 
 #Create local auditor key stores
 cd "Auditor"
@@ -67,7 +69,7 @@ rm -rf *.jks
 "./$CreateLocalStoresScript"
 cp *.jks "../../../../"
 cd ../../../
-echo "Certificates created for auditor."
+echo "Stores created for auditor."
 
 #Parse hosts file
 MonitorHosts=`echo -n "$HostsFileContent" | tr '\n' ' '| grep -Pzo "(?<=\[Monitors\]).+(?=\[Minions\])"`
