@@ -106,7 +106,7 @@ public class DeveloperInterface {
 		monitorAttestationWriter.write(Messages.ERROR);
 		monitorAttestationWriter.newLine();
 		monitorAttestationWriter.flush();
-		throw new FailedAttestation("Monitor has config:" + splittedMessage[1] + ". Expected" + splittedMessage[2]);
+		throw new FailedAttestation("Monitor has config:" + splittedMessage[1] + ". Expected:" + splittedMessage[2]);
 	}
 
 
@@ -163,7 +163,18 @@ public class DeveloperInterface {
 		System.out.println("Connected");
 
 		attestMonitor(monitorSocket);
+		boolean sendResult = true;
+		if(message.split(" ")[0].equals(Messages.NEW_APP))
+			try {
+				sendResult= sendApp();
+			} catch (InterruptedException e) {
+				System.err.println("Failed to send app:" + e.getMessage());
+				return false;
+			}
 
+		if(!sendResult)
+			return sendResult;
+		
 		BufferedReader monitorReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
@@ -218,13 +229,7 @@ public class DeveloperInterface {
 
 	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation {
 
-		System.out.println("Sending app to monitor....");
-		boolean sendResult= sendApp();
-
-
-		if(!sendResult)
-			return false;
-
+		System.out.println("Sending app to monitor....");		
 
 		Path appPath = FileSystems.getDefault().getPath(this.appDir);
 		boolean messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s %d", Messages.NEW_APP,this.userName,appPath.getFileName().toString(),this.instances));
@@ -259,7 +264,7 @@ public class DeveloperInterface {
 				commandResult = devInt.deployApp();
 			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
 				System.err.println("Failed to deploy app:" + e.getMessage());
-				e.printStackTrace();
+				System.exit(1);
 			}
 			break;
 		case 9:

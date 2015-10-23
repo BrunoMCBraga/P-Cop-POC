@@ -64,10 +64,12 @@ public class AuditorInterface {
 	    KeyStore ks = KeyStore.getInstance("JKS");
 	    FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
 	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-
+	    
+	    
 	    //KeyManagerFactory initialization
 	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+	    
 	    
 	    //TrustStore initialization
 	    KeyStore ts = KeyStore.getInstance("JKS");

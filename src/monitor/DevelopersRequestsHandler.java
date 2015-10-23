@@ -26,6 +26,7 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import auditinghub.AuditingHub;
 import exceptions.ExistentApplicationId;
@@ -217,7 +218,7 @@ public class DevelopersRequestsHandler implements Runnable {
 		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
 		if(attestationRequestArray[0].equals(Messages.ATTEST)){
 
-			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, AttestationConstants.QUOTE));
+			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, DatatypeConverter.printHexBinary((this.monitor.getApprovedConfiguration()))));
 			attestationWriter.newLine();
 			attestationWriter.flush();
 		}

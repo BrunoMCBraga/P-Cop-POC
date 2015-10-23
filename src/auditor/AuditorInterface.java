@@ -5,11 +5,18 @@ import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +27,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
@@ -51,9 +59,12 @@ public class AuditorInterface {
 	private static final String AUDITOR_STORE_NAME = "Auditor.jks";
 	private static final String MONITORS_TRUST_STORE_NAME = "TrustedMonitors.jks";
 	private static final String HUBS_TRUST_STORE_NAME = "TrustedHubs.jks";
-
+	private byte[] monitorSignature;
+	private byte[] hubSignature;
+	private byte[] minionSignature;
+	
 	//Attest node against the expected value and uploads configuration signatures for monitor.
-		private void attestMonitor(String host, String expectedValue) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException, InvalidMessageException, FailedAttestation {
+	private void attestMonitor(String host, String expectedValue) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException, InvalidMessageException, FailedAttestation {
 
 			String attestRequestString = String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE);
 
@@ -61,6 +72,7 @@ public class AuditorInterface {
 			KeyStore ks = KeyStore.getInstance("JKS");
 			FileInputStream keyStoreIStream = new FileInputStream(this.AUDITOR_STORE_NAME);
 			ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		
 
 			//KeyManagerFactory initialization
 			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -95,7 +107,8 @@ public class AuditorInterface {
 			//QUOTE QUOTE TRUSTED_QUOTE
 			if(splittedQuote[0].equals(Messages.QUOTE)){
 				if(splittedQuote[1].equals(expectedValue)){
-					attestationSessionWriter.write(Messages.OK);
+					//OK monitor_singed_config minions_signed_config
+					attestationSessionWriter.write(String.format("%s %s %s",Messages.OK, DatatypeConverter.printHexBinary(this.monitorSignature), DatatypeConverter.printHexBinary(this.minionSignature)));
 					attestationSessionWriter.newLine();
 					attestationSessionWriter.flush();
 					//send aproved signature.
@@ -153,7 +166,7 @@ public class AuditorInterface {
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedQuote[0].equals(Messages.QUOTE)){
 			if(splittedQuote[1].equals(expectedValue)){
-				attestationSessionWriter.write(Messages.OK);
+				attestationSessionWriter.write(String.format("%s %s",Messages.OK, DatatypeConverter.printHexBinary(this.hubSignature)));
 				attestationSessionWriter.newLine();
 				attestationSessionWriter.flush();
 				//send aproved signature.
@@ -169,9 +182,41 @@ public class AuditorInterface {
 
 	}
 
+	private byte[] generateSignature(byte[] data) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, NoSuchProviderException, InvalidKeyException, SignatureException{
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.AUDITOR_STORE_NAME);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		
+		PrivateKey auditorKey = (PrivateKey) ks.getKey("Auditor", Credentials.KEY_PASS.toCharArray());
+		keyStoreIStream.close();
+		
+		Signature rsa = Signature.getInstance("SHA1withRSA"); 
+		rsa.initSign(auditorKey);
+		rsa.update(data);
+		return rsa.sign();
+		
+		
+	}
+	
 	public static void main(String[] args) throws IOException{
 
 		AuditorInterface aI = new AuditorInterface();
+		try {
+			aI.monitorSignature = aI.generateSignature(AttestationConstants.QUOTE.getBytes());
+			aI.hubSignature = aI.generateSignature(AttestationConstants.QUOTE.getBytes());
+			aI.minionSignature = aI.generateSignature(AttestationConstants.QUOTE.getBytes());
+		} catch (UnrecoverableKeyException | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException
+				| CertificateException | NoSuchProviderException | SignatureException e1) {
+			System.err.println("Failed to generate quote signatures:" + e1.getMessage());
+			System.exit(1);
+		}
+
+		System.out.println("Monitor signature:" + DatatypeConverter.printHexBinary(aI.monitorSignature));
+		System.out.println("Minion signature:" + DatatypeConverter.printHexBinary(aI.minionSignature));
+		System.out.println("Hub signature:" + DatatypeConverter.printHexBinary(aI.hubSignature));
+		System.out.println("!!!!!!!!!!!!!");
+
 
 		BufferedReader promptReader= new BufferedReader(new InputStreamReader(System.in));
 

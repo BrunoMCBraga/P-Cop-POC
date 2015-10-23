@@ -50,10 +50,20 @@ public class AuditorsRequestsHandler implements Runnable {
 		attestationWriter.newLine();
 		attestationWriter.flush();
 
+		String attestationResult = attestationReader.readLine();
+		String[] splittedResult = attestationResult.split(" ");
 
-
-		if(attestationReader.readLine().equals(Messages.ERROR))
+		if(splittedResult[0].equals(Messages.ERROR))
 			throw new RejectedConfiguration("Auditor rejected platform attestation.");
+
+		else if(splittedResult[0].equals(Messages.OK)){
+			System.out.println("Configuration approved. Auditor signature:" + splittedResult[1]);
+			this.auditingHub.setApprovedConfiguration(splittedResult[1].getBytes());
+			return;
+		}
+
+		throw new InvalidMessageException(String.format("Expected: %s or %s. Received: %s", Messages.OK, Messages.ERROR, splittedResult[1]));
+
 
 	}
 

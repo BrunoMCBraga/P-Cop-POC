@@ -50,6 +50,8 @@ public class Monitor {
 	private String hostName;
 	private String userName;
 	private String sshKey;
+	private byte[] approvedConfiguration;
+	private byte[] approvedConfigurationForMinions;
 
 	public Monitor(String userName, String sshKey, String hostName){
 		
@@ -198,15 +200,31 @@ public class Monitor {
 		return this.trustedMinions;
 	}
 
-
+	public void setApprovedConfiguration(byte[] signedConfiguration) {
+		this.approvedConfiguration = signedConfiguration;
+		 
+	}
+	
+	public byte[] getApprovedConfiguration() {
+		return this.approvedConfiguration;
+	}
+	
+	public void setApprovedConfigurationForMinions(byte[] signedConfiguration) {
+		this.approvedConfigurationForMinions = signedConfiguration;
+	
+	}
+	
+	public byte[] getApprovedConfigurationForMinions() {
+		return this.approvedConfigurationForMinions;
+		 
+	}
 	
 	public static void main(String[] args) throws IOException{
 
 
 
 		System.out.println("Started Monitor");
-		System.setProperty("javax.net.ssl.keyStore", Credentials.MONITOR_KEYSTORE);
-		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
+		
 		
 		Monitor monitor = null;
 		String userName = "";
@@ -239,6 +257,12 @@ public class Monitor {
 			System.exit(0);
 		}
 	}
+
+	
+
+	
+
+	
 
 
 

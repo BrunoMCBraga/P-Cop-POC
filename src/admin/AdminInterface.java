@@ -63,7 +63,7 @@ public class AdminInterface {
 
 		String quote = loggerAttestationReader.readLine();
 		String[] splittedMessage = quote.split(" ");
-
+		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
 			if(splittedMessage[1].equals(splittedMessage[2])){
@@ -76,10 +76,11 @@ public class AdminInterface {
 		}
 		else throw new InvalidMessageException("Expected:" + Messages.QUOTE + ". Received:" + splittedMessage[0]);
 
+
 		loggerAttestationWriter.write(Messages.ERROR);
 		loggerAttestationWriter.newLine();
 		loggerAttestationWriter.flush();
-		throw new FailedAttestation("Logger has config:" + splittedMessage[1] + ". Expected" + splittedMessage[2]);
+		throw new FailedAttestation("Logger has config:" + splittedMessage[1] + ". Expected:" + splittedMessage[2]);
 	}
 
 
@@ -120,6 +121,7 @@ public class AdminInterface {
 		String manageRequestString = String.format("%s %s %s", Messages.MANAGE,this.userName,this.remoteHost);
 		this.hubSocket =  new Socket((String)null, Ports.ADMIN_SSH_PORT);
 	    
+		System.out.println("Attesting hub...");
 		attestLogger(this.hubSocket);
 
 		
@@ -220,7 +222,6 @@ public class AdminInterface {
 				commandResult = aI.manageNode();
 			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation e) {
 				System.err.println("Failed to run management session:" + e.getMessage());
-				e.printStackTrace();
 				System.exit(1);
 			}
 			break;

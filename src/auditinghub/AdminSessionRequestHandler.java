@@ -28,6 +28,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import exceptions.InvalidMessageException;
 import exceptions.RejectedConfiguration;
@@ -65,12 +66,11 @@ public class AdminSessionRequestHandler implements Runnable {
 	private String hostName;
 
 
-	public AdminSessionRequestHandler(AuditingHub auditingHubInstance,Socket adminToHubSocket, String adminUserName,String remoteHost){
+	public AdminSessionRequestHandler(AuditingHub auditingHubInstance,Socket adminToHubSocket){
 
 		this.auditingHubInstance = auditingHubInstance;
 		this.adminToHubSocket = adminToHubSocket;
-		this.adminUserName = adminUserName;
-		this.remoteHost = remoteHost;
+
 
 		this.hubUserName = auditingHubInstance.getHubUserName();
 		this.hubKey = auditingHubInstance.getHubKey();
@@ -122,30 +122,30 @@ public class AdminSessionRequestHandler implements Runnable {
 
 
 	private boolean setNodeUntrusted() throws InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException{
-		
-		//Keystore initialization
-	    KeyStore ks = KeyStore.getInstance("JKS");
-	    FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
-	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-	    
-	    //TrustStore initialization
-	    KeyStore ts = KeyStore.getInstance("JKS");
-	    FileInputStream trustStoreIStream = new FileInputStream(AdminSessionRequestHandler.MONITORS_TRUST_STORE);
-	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-	    
-	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-	    tmf.init(ts);
-	    
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//KeyManagerFactory initialization
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+		//TrustStore initialization
+		KeyStore ts = KeyStore.getInstance("JKS");
+		FileInputStream trustStoreIStream = new FileInputStream(AdminSessionRequestHandler.MONITORS_TRUST_STORE);
+		ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//TrustManagerFactory initialization
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(ts);
+
 		SSLContext context = SSLContext.getInstance("TLS");
-	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-	 
-	    SSLSocketFactory ssf = context.getSocketFactory();
-	    
+		context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+		SSLSocketFactory ssf = context.getSocketFactory();
+
 		Socket monitorSocket = ssf.createSocket(InetAddress.getByName(this.monitorHost), Ports.MONITOR_HUB_PORT);
 		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
@@ -165,32 +165,32 @@ public class AdminSessionRequestHandler implements Runnable {
 			throw new InvalidMessageException("Unexpected sync value from monitor:" + monitorResponse);
 		}
 	}
-	
-	private boolean purgeMinion() throws IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException{
-		
-		//Keystore initialization
-	    KeyStore ks = KeyStore.getInstance("JKS");
-	    FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
-	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-	    
-	    //TrustStore initialization
-	    KeyStore ts = KeyStore.getInstance("JKS");
-	    FileInputStream trustStoreIStream = new FileInputStream(AdminSessionRequestHandler.MINIONS_TRUST_STORE);
-	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-	    
-	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-	    tmf.init(ts);
-	    
+	private boolean purgeMinion() throws IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException{
+
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.hubStore);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//KeyManagerFactory initialization
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+		//TrustStore initialization
+		KeyStore ts = KeyStore.getInstance("JKS");
+		FileInputStream trustStoreIStream = new FileInputStream(AdminSessionRequestHandler.MINIONS_TRUST_STORE);
+		ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//TrustManagerFactory initialization
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(ts);
+
 		SSLContext context = SSLContext.getInstance("TLS");
-	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-	 
-	    SSLSocketFactory ssf = context.getSocketFactory();
-		
+		context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+		SSLSocketFactory ssf = context.getSocketFactory();
+
 		Socket minionSocket = ssf.createSocket(this.remoteHost, Ports.MINION_HUB_PORT);
 		BufferedReader minionSessionReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 		BufferedWriter minionSessionWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
@@ -209,19 +209,19 @@ public class AdminSessionRequestHandler implements Runnable {
 		default:
 			throw new InvalidMessageException("Unexpected sync value from minion:" + minionResponse);
 		}
-		
+
 	}
-	
+
 	private boolean launchManagementSession() throws IOException, InvalidMessageException, NoSuchAlgorithmException, CertificateException, KeyStoreException, UnrecoverableKeyException, KeyManagementException {
 
 		//TODO:register hub
-		
+
 		if(!setNodeUntrusted())
 			return false;
-		
+
 		if(!purgeMinion())
 			return false;
-		
+
 
 
 		launchSessionProcess();///TODO:catch exceptions here/...
@@ -302,7 +302,7 @@ public class AdminSessionRequestHandler implements Runnable {
 		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
 		if(attestationRequestArray[0].equals(Messages.ATTEST)){
 
-			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, AttestationConstants.QUOTE));
+			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, DatatypeConverter.printHexBinary(this.auditingHubInstance.getApprovedConfiguration())));
 			attestationWriter.newLine();
 			attestationWriter.flush();
 		}
@@ -314,11 +314,12 @@ public class AdminSessionRequestHandler implements Runnable {
 			throw new RejectedConfiguration("Admin rejected platform attestation.");
 
 	}
-	
+
 	@Override
 	public void run() {
 
 		try {
+			System.out.println("Pre-session attestation...");
 			processAttestation(this.adminToHubSocket);
 		} catch (IOException | InvalidMessageException | RejectedConfiguration e2) {
 			System.err.println("Failed admin attestation:" + e2.getMessage());
@@ -333,6 +334,37 @@ public class AdminSessionRequestHandler implements Runnable {
 			System.err.println("Error obtaining admin session streams:" + e.getMessage());
 			return;
 		}
+
+		//TODO: properly close session.
+		String request;
+		try {
+			request = adminSessionReader.readLine();
+		} catch (IOException e2) {
+			System.err.println("Failed to receive managing request:" + e2.getMessage());
+			try {
+				adminSessionWriter.write(Messages.ERROR);
+				adminSessionWriter.newLine();
+				adminSessionWriter.flush();
+			} catch (IOException e) {
+				System.err.println("Failed to signal ERROR for session start to admin:" + e.getMessage());
+				return;
+			}
+			return;
+		}
+		String[] splittedRequest = request.split(" ");
+		if(!splittedRequest[0].equals(Messages.MANAGE))
+			try {
+				adminSessionWriter.write(Messages.ERROR);
+				adminSessionWriter.newLine();
+				adminSessionWriter.flush();
+				return;
+			} catch (IOException e) {
+				System.err.println("Failed to signal ERROR for session start to admin:" + e.getMessage());
+				return;
+			}
+
+		this.adminUserName = splittedRequest[1];
+		this.remoteHost = splittedRequest[2];
 
 		//TODO:PURGE before entering...
 		//TODO:if writes fail, session lists may be outdated
