@@ -189,6 +189,15 @@ public class Monitor {
 	public List<Minion> getHosts(String appId){
 		return appsHosts.get(appId);		
 	}
+	
+	public Minion getUntrustedMinion(String ipAddress) {
+		return this.untrustedMinions.get(ipAddress);
+	}
+
+	public Map<String, Minion> getTrustedMinions() {
+		return this.trustedMinions;
+	}
+
 
 	
 	public static void main(String[] args) throws IOException{
@@ -220,6 +229,7 @@ public class Monitor {
 		new Thread(new DevelopersRequestsHandler(monitor)).start();
 		new Thread(new HubsRequestsHandler(monitor)).start();
 		new Thread(new MinionsRequestsHandler(monitor)).start();
+		new Thread(new AuditorsRequestsHandler(monitor)).start();
 
 		try {
 			synchronized (Thread.currentThread()) {
@@ -230,16 +240,6 @@ public class Monitor {
 		}
 	}
 
-	public Minion getUntrustedMinion(String ipAddress) {
-		return this.untrustedMinions.get(ipAddress);
-	}
-
-	public Map<String, Minion> getTrustedMinions() {
-		return this.trustedMinions;
-	}
-
-
-	
 
 
 }

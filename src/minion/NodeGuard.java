@@ -26,7 +26,6 @@ import global.AttestationConstants;
 import global.Credentials;
 import global.Messages;
 import global.Ports;
-import monitor.DevelopersRequestsHandler;
 
 /*
  * NodeGuard -m monitorHostName -h hostName
@@ -67,6 +66,8 @@ public class NodeGuard {
 		if(attestationRequestArray[0].equals(Messages.ATTEST)){
 
 			attestationWriter.write(String.format("%s %s", Messages.QUOTE, AttestationConstants.QUOTE));
+			attestationWriter.newLine();
+			attestationWriter.flush();
 
 		}
 		else 		
@@ -74,7 +75,7 @@ public class NodeGuard {
 
 
 		if(attestationReader.readLine().equals(Messages.ERROR))
-			throw new RejectedConfiguration("Developer rejected platform attestation.");
+			throw new RejectedConfiguration("Monitor rejected platform attestation.");
 
 	}
 	
@@ -144,8 +145,7 @@ public class NodeGuard {
 	public static void main(String[] args){
 
 		System.out.println("Started Node Guard");
-		System.setProperty("javax.net.ssl.keyStore", Credentials.MINION_KEYSTORE);
-		System.setProperty("javax.net.ssl.keyStorePassword", Credentials.KEYSTORE_PASS);
+		
 
 		String monitorHost;
 		String hostName;

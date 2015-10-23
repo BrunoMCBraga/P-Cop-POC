@@ -218,7 +218,8 @@ public class DevelopersRequestsHandler implements Runnable {
 		if(attestationRequestArray[0].equals(Messages.ATTEST)){
 
 			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, AttestationConstants.QUOTE));
-
+			attestationWriter.newLine();
+			attestationWriter.flush();
 		}
 		else 		
 			throw new InvalidMessageException("Expected:" + Messages.ATTEST + ". Received:" + attestationRequestArray[0]);
@@ -286,6 +287,13 @@ public class DevelopersRequestsHandler implements Runnable {
 				continue;
 			}
 
+			try {
+				processAttestation(developerSocket);
+			} catch (IOException | InvalidMessageException | RejectedConfiguration e1) {
+				System.err.println("Monitor attestation failed on developer request:" + e1.getMessage());
+				continue;
+			}
+
 			BufferedReader socketReader = null; 
 			BufferedWriter socketWriter = null;
 			try {
@@ -297,12 +305,6 @@ public class DevelopersRequestsHandler implements Runnable {
 				continue;
 			}
 
-			try {
-				processAttestation(developerSocket);
-			} catch (IOException | InvalidMessageException | RejectedConfiguration e1) {
-				System.err.println("Monitor attestation failed on developer request:" + e1.getMessage());
-				continue;
-			}
 
 			String developerRequest = null;
 

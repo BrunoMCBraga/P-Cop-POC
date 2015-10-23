@@ -303,7 +303,8 @@ public class AdminSessionRequestHandler implements Runnable {
 		if(attestationRequestArray[0].equals(Messages.ATTEST)){
 
 			attestationWriter.write(String.format("%s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, AttestationConstants.QUOTE));
-
+			attestationWriter.newLine();
+			attestationWriter.flush();
 		}
 		else 		
 			throw new InvalidMessageException("Expected:" + Messages.ATTEST + ". Received:" + attestationRequestArray[0]);
@@ -321,7 +322,7 @@ public class AdminSessionRequestHandler implements Runnable {
 			processAttestation(this.adminToHubSocket);
 		} catch (IOException | InvalidMessageException | RejectedConfiguration e2) {
 			System.err.println("Failed admin attestation:" + e2.getMessage());
-			return;
+			System.exit(1);
 		}
 		BufferedReader adminSessionReader;
 		BufferedWriter adminSessionWriter;

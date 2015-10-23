@@ -15,3 +15,6 @@ keytool -import -alias "Minion3.evaluation.tpaas.emulab.net" -file "../Minion3.e
 
 keytool -import -alias "Monitor.evaluation.tpaas.emulab.net" -file "../Monitor.evaluation.tpaas.emulab.net/Monitor.evaluation.tpaas.emulab.net.crt" -keystore "TrustedDevelopers.jks" -storepass "Passss" -noprompt
 keytool -import -alias "Developer" -file "../Developer/Developer.crt" -keystore "TrustedDevelopers.jks" -storepass "Passss" -noprompt
+
+keytool -import -alias "Auditor" -file "../Auditor/Auditor.crt" -keystore "TrustedAuditors.jks" -storepass "Passss" -noprompt
+

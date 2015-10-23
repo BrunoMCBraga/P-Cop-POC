@@ -95,8 +95,11 @@ public class DeveloperInterface {
 		if(splittedMessage[0].equals(Messages.QUOTE)){
 			if(splittedMessage[1].equals(splittedMessage[2])){
 				monitorAttestationWriter.write(Messages.OK);
+				monitorAttestationWriter.newLine();
+				monitorAttestationWriter.flush();
 				return;
 			}
+		
 		}
 		else throw new InvalidMessageException("Expected:" + Messages.QUOTE + ". Received:" + splittedMessage[0]);
 

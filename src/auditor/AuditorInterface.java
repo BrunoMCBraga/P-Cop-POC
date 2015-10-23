@@ -50,7 +50,7 @@ public class AuditorInterface {
 
 	private static final String AUDITOR_STORE_NAME = "Auditor.jks";
 	private static final String MONITORS_TRUST_STORE_NAME = "TrustedMonitors.jks";
-	private static final String LOGGERS_TRUST_STORE_NAME = "TrustedLoggers.jks";
+	private static final String HUBS_TRUST_STORE_NAME = "TrustedHubs.jks";
 
 	//Attest node against the expected value and uploads configuration signatures for monitor.
 		private void attestMonitor(String host, String expectedValue) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException, InvalidMessageException, FailedAttestation {
@@ -80,7 +80,7 @@ public class AuditorInterface {
 
 			SSLSocketFactory ssf = context.getSocketFactory();
 
-			Socket monitorSocket =  ssf.createSocket(host, Ports.MONITOR_HUB_PORT);
+			Socket monitorSocket =  ssf.createSocket(host, Ports.MONITOR_AUDITOR_PORT);
 			BufferedReader attestationSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 			BufferedWriter attestationSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
@@ -96,6 +96,8 @@ public class AuditorInterface {
 			if(splittedQuote[0].equals(Messages.QUOTE)){
 				if(splittedQuote[1].equals(expectedValue)){
 					attestationSessionWriter.write(Messages.OK);
+					attestationSessionWriter.newLine();
+					attestationSessionWriter.flush();
 					//send aproved signature.
 					return;
 				}
@@ -105,7 +107,7 @@ public class AuditorInterface {
 			attestationSessionWriter.write(Messages.ERROR);
 			attestationSessionWriter.newLine();
 			attestationSessionWriter.flush();
-			throw new FailedAttestation("Monitor has config:" + splittedQuote[1] + ". Expected" + expectedValue);
+			throw new FailedAttestation("Monitor has config:" + splittedQuote[1] + ". Expected:" + expectedValue);
 
 		}
 	//Attest node against the expected value and uploads configuration signatures for logger.
@@ -124,7 +126,7 @@ public class AuditorInterface {
 
 		//TrustStore initialization
 		KeyStore ts = KeyStore.getInstance("JKS");
-		FileInputStream trustStoreIStream = new FileInputStream(AuditorInterface.LOGGERS_TRUST_STORE_NAME);
+		FileInputStream trustStoreIStream = new FileInputStream(AuditorInterface.HUBS_TRUST_STORE_NAME);
 		ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
 		//TrustManagerFactory initialization
@@ -136,7 +138,7 @@ public class AuditorInterface {
 
 		SSLSocketFactory ssf = context.getSocketFactory();
 
-		Socket loggerSocket =  ssf.createSocket(host, Ports.MONITOR_HUB_PORT);
+		Socket loggerSocket =  ssf.createSocket(host, Ports.HUB_AUDITOR_PORT);
 		BufferedReader attestationSessionReader = new BufferedReader(new InputStreamReader(loggerSocket.getInputStream()));
 		BufferedWriter attestationSessionWriter = new BufferedWriter(new OutputStreamWriter(loggerSocket.getOutputStream()));
 
@@ -152,6 +154,8 @@ public class AuditorInterface {
 		if(splittedQuote[0].equals(Messages.QUOTE)){
 			if(splittedQuote[1].equals(expectedValue)){
 				attestationSessionWriter.write(Messages.OK);
+				attestationSessionWriter.newLine();
+				attestationSessionWriter.flush();
 				//send aproved signature.
 				return;
 			}
@@ -161,13 +165,13 @@ public class AuditorInterface {
 		attestationSessionWriter.write(Messages.ERROR);
 		attestationSessionWriter.newLine();
 		attestationSessionWriter.flush();
-		throw new FailedAttestation("Logger has config:" + splittedQuote[1] + ". Expected" + expectedValue);
+		throw new FailedAttestation("Logger has config:" + splittedQuote[1] + ". Expected:" + expectedValue);
 
 	}
 
 	public static void main(String[] args) throws IOException{
 
-		AuditorInterface aI = null;
+		AuditorInterface aI = new AuditorInterface();
 
 		BufferedReader promptReader= new BufferedReader(new InputStreamReader(System.in));
 
@@ -183,7 +187,7 @@ public class AuditorInterface {
 			String auditorCommand = promptReader.readLine();
 			String[] splittedCommand = auditorCommand.split(" ");
 			switch (splittedCommand[0]) {
-			case "att":
+			case "attm":
 				try {
 					aI.attestMonitor(splittedCommand[1], splittedCommand[2]);
 				} catch (UnrecoverableKeyException | KeyManagementException | KeyStoreException

@@ -67,7 +67,10 @@ public class AdminInterface {
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
 			if(splittedMessage[1].equals(splittedMessage[2])){
+				System.out.println("Monitor has trusted configuration.");
 				loggerAttestationWriter.write(Messages.OK);
+				loggerAttestationWriter.newLine();
+				loggerAttestationWriter.flush();
 				return;
 			}
 		}

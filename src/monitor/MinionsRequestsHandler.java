@@ -57,6 +57,8 @@ public class MinionsRequestsHandler implements Runnable {
 		if(splittedResponse[0].equals(Messages.QUOTE))
 			if(splittedResponse[1].equals(AttestationConstants.QUOTE)){
 				minionAttestationWriter.write(Messages.OK);
+				minionAttestationWriter.newLine();
+				minionAttestationWriter.flush();
 				return;
 			}
 		else 

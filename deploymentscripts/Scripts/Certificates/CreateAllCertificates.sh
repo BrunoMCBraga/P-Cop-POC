@@ -28,5 +28,7 @@ AdminDir="Admin"
 DeveloperDir="Developer"
 "./$GenCertificateScript" "$DeveloperDir" "$MonitorDir"
 
+AuditorDir="Auditor"
+"./$GenCertificateScript" "$AuditorDir" "$MonitorDir"
 
 

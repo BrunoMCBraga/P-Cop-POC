@@ -82,7 +82,7 @@ public class AuditingHub {
 	}
 	
 	public String getHostName(){
-		return hostName;
+		return this.hostName;
 	}
 	
 	//Check if there is another session to a given host
@@ -128,7 +128,8 @@ public class AuditingHub {
 		}
 		
 
-	
+		new Thread(new AuditorsRequestsHandler(aH)).start();
+		
 		ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
 		Socket newSessionSocket;
 		Thread sessionThread;
@@ -152,6 +153,7 @@ public class AuditingHub {
 					aH.temporaryThreads.put(sessionThread.getId(), sessionThread);
 					sessionThread.start();
 				break;
+			
 
 			}
 		}
