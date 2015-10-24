@@ -19,6 +19,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
@@ -58,7 +59,7 @@ public class AuditorsRequestsHandler implements Runnable {
 
 		else if(splittedResult[0].equals(Messages.OK)){
 			System.out.println("Configuration approved. Auditor signature:" + splittedResult[1]);
-			this.auditingHub.setApprovedConfiguration(splittedResult[1].getBytes());
+			this.auditingHub.setApprovedConfiguration(DatatypeConverter.parseHexBinary(splittedResult[1]));
 			return;
 		}
 

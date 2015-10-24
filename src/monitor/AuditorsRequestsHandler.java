@@ -19,6 +19,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
@@ -58,8 +59,8 @@ public class AuditorsRequestsHandler implements Runnable {
 
 		else if(splittedResult[0].equals(Messages.OK)){
 			System.out.println("Configuration approved. Auditor signature for monitor:" + splittedResult[1] + ". For minions:" + splittedResult[2]);
-			this.monitor.setApprovedConfiguration(splittedResult[1].getBytes());
-			this.monitor.setApprovedConfigurationForMinions(splittedResult[2].getBytes());
+			this.monitor.setApprovedConfiguration(DatatypeConverter.parseHexBinary(splittedResult[1]));
+			this.monitor.setApprovedConfigurationForMinions(DatatypeConverter.parseHexBinary(splittedResult[2]));
 			return;
 		}
 		

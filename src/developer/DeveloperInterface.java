@@ -34,6 +34,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
+import javax.xml.bind.DatatypeConverter;
 
 import admin.AdminInterface;
 import exceptions.FailedAttestation;
@@ -112,7 +113,7 @@ public class DeveloperInterface {
 
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
-			if(rsa.verify(splittedMessage[2].getBytes())){
+			if(rsa.verify(DatatypeConverter.parseHexBinary(splittedMessage[2]))){
 				monitorAttestationWriter.write(Messages.OK);
 				monitorAttestationWriter.newLine();
 				monitorAttestationWriter.flush();

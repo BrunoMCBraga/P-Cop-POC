@@ -212,10 +212,18 @@ public class AuditorInterface {
 			System.exit(1);
 		}
 
+		/*System.out.println(aI.monitorSignature.length);
+		String stringedMonitor = new String(aI.monitorSignature, "UTF-8");
+		String hexedMonitor = DatatypeConverter.printHexBinary(aI.monitorSignature);
+		String recoveredString = new String(DatatypeConverter.parseHexBinary(hexedMonitor), "UTF-8");
+		System.out.println(DatatypeConverter.parseHexBinary(hexedMonitor).length);
+
+		if(stringedMonitor.equals(recoveredString))
+			System.out.println("Recovered!");
+		*/
 		System.out.println("Monitor signature:" + DatatypeConverter.printHexBinary(aI.monitorSignature));
 		System.out.println("Minion signature:" + DatatypeConverter.printHexBinary(aI.minionSignature));
 		System.out.println("Hub signature:" + DatatypeConverter.printHexBinary(aI.hubSignature));
-		System.out.println("!!!!!!!!!!!!!");
 
 
 		BufferedReader promptReader= new BufferedReader(new InputStreamReader(System.in));

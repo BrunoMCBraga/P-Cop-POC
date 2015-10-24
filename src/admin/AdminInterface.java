@@ -16,6 +16,8 @@ import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.xml.bind.DatatypeConverter;
+
 import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
 import global.AttestationConstants;
@@ -86,7 +88,7 @@ public class AdminInterface {
 		String quote = loggerAttestationReader.readLine();
 		String[] splittedMessage = quote.split(" ");
 		
-		rsa.update(splittedMessage[1].getBytes());
+		rsa.update(DatatypeConverter.parseHexBinary(splittedMessage[1]));
 		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
