@@ -323,7 +323,7 @@ public class AdminSessionRequestHandler implements Runnable {
 			processAttestation(this.adminToHubSocket);
 		} catch (IOException | InvalidMessageException | RejectedConfiguration e2) {
 			System.err.println("Failed admin attestation:" + e2.getMessage());
-			System.exit(1);
+			//System.exit(1);
 		}
 		BufferedReader adminSessionReader;
 		BufferedWriter adminSessionWriter;

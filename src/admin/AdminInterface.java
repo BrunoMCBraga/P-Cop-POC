@@ -88,11 +88,11 @@ public class AdminInterface {
 		String quote = loggerAttestationReader.readLine();
 		String[] splittedMessage = quote.split(" ");
 		
-		rsa.update(DatatypeConverter.parseHexBinary(splittedMessage[1]));
+		rsa.update(splittedMessage[1].getBytes());
 		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
-			if(rsa.verify(splittedMessage[2].getBytes())){
+			if(rsa.verify(DatatypeConverter.parseHexBinary(splittedMessage[2]))){
 				System.out.println("Monitor has trusted configuration.");
 				loggerAttestationWriter.write(Messages.OK);
 				loggerAttestationWriter.newLine();
