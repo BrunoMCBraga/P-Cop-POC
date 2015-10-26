@@ -140,6 +140,7 @@ public class AuditingHub {
 
 
 		new Thread(new AuditorsRequestsHandler(aH)).start();
+		while(aH.getApprovedConfiguration() == null);
 
 		ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
 		Socket newSessionSocket;

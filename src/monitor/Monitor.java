@@ -244,10 +244,13 @@ public class Monitor {
 		
 		ServerSocket minionsServerSocket = null;
 
+		new Thread(new AuditorsRequestsHandler(monitor)).start();
+
+		while(monitor.getApprovedConfiguration() == null);
+		
 		new Thread(new DevelopersRequestsHandler(monitor)).start();
 		new Thread(new HubsRequestsHandler(monitor)).start();
 		new Thread(new MinionsRequestsHandler(monitor)).start();
-		new Thread(new AuditorsRequestsHandler(monitor)).start();
 
 		try {
 			synchronized (Thread.currentThread()) {
