@@ -246,7 +246,10 @@ public class Monitor {
 
 		new Thread(new AuditorsRequestsHandler(monitor)).start();
 
-		while(monitor.getApprovedConfiguration() == null);
+		while(monitor.getApprovedConfiguration() == null){
+			System.out.println("Pending approval.");
+			
+		}
 		
 		new Thread(new DevelopersRequestsHandler(monitor)).start();
 		new Thread(new HubsRequestsHandler(monitor)).start();

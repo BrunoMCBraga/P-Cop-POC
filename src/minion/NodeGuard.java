@@ -52,7 +52,7 @@ public class NodeGuard {
 		this.hostName = hostName;
 		this.minionStore = hostName + ".jks";
 	}
-	
+
 	public String getHostName() {
 		return hostName;
 	}
@@ -78,33 +78,41 @@ public class NodeGuard {
 			throw new RejectedConfiguration("Monitor rejected platform attestation.");
 
 	}
-	
+
 	private boolean startMonitorHandler() throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException {
-		
+
 		//Keystore initialization
-	    KeyStore ks = KeyStore.getInstance("JKS");
-	    FileInputStream keyStoreIStream = new FileInputStream(this.minionStore);
-	    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.minionStore);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 
-	    //KeyManagerFactory initialization
-	    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-	    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
-	    
-	    //TrustStore initialization
-	    KeyStore ts = KeyStore.getInstance("JKS");
-	    FileInputStream trustStoreIStream = new FileInputStream(NodeGuard.MONITORS_TRUST_STORE);
-	    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-	    
-	    //TrustManagerFactory initialization
-	    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-	    tmf.init(ts);
-	    
+		//KeyManagerFactory initialization
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+
+		//TrustStore initialization
+		KeyStore ts = KeyStore.getInstance("JKS");
+		FileInputStream trustStoreIStream = new FileInputStream(NodeGuard.MONITORS_TRUST_STORE);
+		ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		//TrustManagerFactory initialization
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(ts);
+
 		SSLContext context = SSLContext.getInstance("TLS");
-	    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-	 
-	    SSLSocketFactory ssf = context.getSocketFactory();
+		context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
-		Socket monitorSocket = ssf.createSocket(this.monitorHost,Ports.MONITOR_MINION_PORT);
+		SSLSocketFactory ssf = context.getSocketFactory();
+
+		Socket monitorSocket = null;
+
+		while(true)
+			try{
+				monitorSocket = ssf.createSocket(this.monitorHost,Ports.MONITOR_MINION_PORT);
+				break;
+			}catch (IOException e){
+				continue;
+			}
 		try {
 			processAttestation(monitorSocket);
 		} catch (IOException | InvalidMessageException | RejectedConfiguration e) {
@@ -114,7 +122,7 @@ public class NodeGuard {
 
 		BufferedReader monitorSessionReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorSessionWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
-		
+
 		monitorSessionWriter.write(Messages.REGISTER);
 		monitorSessionWriter.newLine();
 		monitorSessionWriter.flush();
@@ -122,7 +130,7 @@ public class NodeGuard {
 
 
 		String monitorResponse = monitorSessionReader.readLine();
-		
+
 		switch(monitorResponse){
 		case Messages.OK:
 			new Thread(new MonitorRequestsHandler(this)).start();
@@ -145,7 +153,7 @@ public class NodeGuard {
 	public static void main(String[] args){
 
 		System.out.println("Started Node Guard");
-		
+
 
 		String monitorHost;
 		String hostName;
@@ -172,7 +180,7 @@ public class NodeGuard {
 
 		}
 
-		
+
 		if(handlersStartResult)
 			try {
 				synchronized (Thread.currentThread()) {
@@ -183,7 +191,7 @@ public class NodeGuard {
 				System.exit(0);
 			}
 
-		
+
 	}
 
 
