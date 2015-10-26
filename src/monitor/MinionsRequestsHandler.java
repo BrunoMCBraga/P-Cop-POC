@@ -8,17 +8,22 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import exceptions.FailedAttestation;
 import exceptions.InvalidMessageException;
@@ -32,6 +37,7 @@ import global.Ports;
 public class MinionsRequestsHandler implements Runnable {
 
 	private static final String MINIONS_TRUST_STORE = "TrustedMinions.jks";
+	private static final String AUDITORS_TRUST_STORE_NAME = "TrustedAuditors.jks";
 	private Monitor monitor;
 	private String hostName;
 	private String monitorStore;
@@ -43,7 +49,24 @@ public class MinionsRequestsHandler implements Runnable {
 	}
 
 
-	private void attestMinion(Socket minionSocket) throws IOException, InvalidMessageException, FailedAttestation {
+	private void attestMinion(Socket minionSocket) throws IOException, InvalidMessageException, FailedAttestation, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException, SignatureException {
+
+		byte[] signedConfig = null;
+		//While approved configuration is unavaiable, wait.
+		while((signedConfig = this.monitor.getApprovedConfiguration()) == null){
+			System.out.println("NULL");
+		}
+		
+
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.AUDITORS_TRUST_STORE_NAME);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		Certificate auditorCert = ks.getCertificate("Auditor");
+		keyStoreIStream.close();
+		Signature rsa = Signature.getInstance("SHA1withRSA"); 
+		rsa.initVerify(auditorCert);
+
 
 		BufferedReader minionAttestationReader = minionAttestationReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
 		BufferedWriter minionAttestationWriter = minionAttestationWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
@@ -54,15 +77,18 @@ public class MinionsRequestsHandler implements Runnable {
 
 		String[] splittedResponse = minionAttestationReader.readLine().split(" ");
 
+		rsa.update(splittedResponse[1].getBytes());
+
+		
 		if(splittedResponse[0].equals(Messages.QUOTE))
-			if(splittedResponse[1].equals(AttestationConstants.QUOTE)){
+			if(rsa.verify(signedConfig)){
 				minionAttestationWriter.write(Messages.OK);
 				minionAttestationWriter.newLine();
 				minionAttestationWriter.flush();
 				return;
 			}
 		else 
-			throw new InvalidMessageException("Expected:" + Messages.QUOTE + ".Received:" + splittedResponse[0]);
+				throw new InvalidMessageException("Expected:" + Messages.QUOTE + ".Received:" + splittedResponse[0]);
 
 		minionAttestationWriter.write(Messages.ERROR);
 		minionAttestationWriter.newLine();
@@ -126,7 +152,7 @@ public class MinionsRequestsHandler implements Runnable {
 
 			try {
 				attestMinion(minionSocket);
-			} catch (IOException | InvalidMessageException | FailedAttestation e1) {
+			} catch (IOException | InvalidMessageException | FailedAttestation | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException | SignatureException e1) {
 				System.err.println("Failed to attest minion:" + e1.getMessage());
 				continue;
 			}

@@ -50,8 +50,8 @@ public class Monitor {
 	private String hostName;
 	private String userName;
 	private String sshKey;
-	private byte[] approvedConfiguration;
-	private byte[] approvedConfigurationForMinions;
+	private byte[] approvedConfiguration = null;
+	private byte[] approvedConfigurationForMinions = null;
 
 	public Monitor(String userName, String sshKey, String hostName){
 		
