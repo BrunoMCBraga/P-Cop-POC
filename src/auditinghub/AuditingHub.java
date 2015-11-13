@@ -57,6 +57,7 @@ public class AuditingHub {
 	private Map<String, Thread> remoteHostThreadMap;
 	private String hostName;
 	private byte[] approvedConfiguration;
+	private String approvedSHA1;
 
 
 	public AuditingHub(String hubUserName, String hubKey, String monitorHost, String hostName){
@@ -104,7 +105,8 @@ public class AuditingHub {
 	}
 
 
-	public void setApprovedConfiguration(byte[] signedConfiguration) {
+	public void setApprovedConfiguration(String approvedSHA1, byte[] signedConfiguration) {
+		this.approvedSHA1 = approvedSHA1;
 		this.approvedConfiguration = signedConfiguration;
 
 	}
@@ -169,6 +171,11 @@ public class AuditingHub {
 
 			//}
 		}
+
+	}
+
+	public String getApprovedSHA1() {
+		return approvedSHA1;
 
 	}
 

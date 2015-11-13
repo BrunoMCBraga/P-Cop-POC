@@ -12,6 +12,7 @@ import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -23,9 +24,16 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -86,7 +94,7 @@ public class DeveloperInterface {
 
 	}
 
-	private void attestMonitor(Socket monitorSocket) throws IOException, FailedAttestation, InvalidMessageException, SignatureException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException {
+	private void attestMonitor(Socket monitorSocket) throws IOException, FailedAttestation, InvalidMessageException, SignatureException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
 
 		//Keystore initialization
 		KeyStore ks = KeyStore.getInstance("JKS");
@@ -95,8 +103,6 @@ public class DeveloperInterface {
 		Certificate auditorCert = ks.getCertificate("Auditor");
 		keyStoreIStream.close();
 
-		Signature rsa = Signature.getInstance("SHA1withRSA"); 
-		rsa.initVerify(auditorCert);
 
 		BufferedReader monitorAttestationReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter monitorAttestationWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
@@ -105,15 +111,28 @@ public class DeveloperInterface {
 		monitorAttestationWriter.write(String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE));
 		monitorAttestationWriter.newLine();
 		monitorAttestationWriter.flush();
-
+		//QUOTE PLATFORM_QUOTE AUDITOR_SHA1 AUDITOR_SIGNED_SHA1
 		String quote = monitorAttestationReader.readLine();
 		String[] splittedMessage = quote.split(" ");
 
-		rsa.update(splittedMessage[1].getBytes());
+		byte[] tpmPubKeyBytes = Base64.getDecoder().decode(AttestationConstants.TPM_PUB_KEY.getBytes());
+		X509EncodedKeySpec spec = new X509EncodedKeySpec(tpmPubKeyBytes);
+		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+		PublicKey tpmPubKey = keyFactory.generatePublic(spec);
+	
+		Signature auditorSignature = Signature.getInstance("SHA1withRSA"); 
+		auditorSignature.initVerify(auditorCert);
+		auditorSignature.update(splittedMessage[2].getBytes());
+		
+		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+		tpmSignature.initVerify(tpmPubKey);
+		tpmSignature.update((AttestationConstants.NONCE+splittedMessage[2]).getBytes());
+
+		//rsa.update(decryptedQuote.substring(AttestationConstants.NONCE.length()).getBytes());
 
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
-			if(rsa.verify(DatatypeConverter.parseHexBinary(splittedMessage[2]))){
+			if(auditorSignature.verify(DatatypeConverter.parseHexBinary(splittedMessage[3])) && tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedMessage[1]))){
 				monitorAttestationWriter.write(Messages.OK);
 				monitorAttestationWriter.newLine();
 				monitorAttestationWriter.flush();
@@ -130,7 +149,7 @@ public class DeveloperInterface {
 	}
 
 
-	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException, FailedAttestation, InvalidKeyException, SignatureException{
+	private boolean sendSyncMessageAndGetResponse(String message) throws UnknownHostException, IOException, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException, FailedAttestation, InvalidKeyException, SignatureException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException{
 
 		//Keystore initialization
 		System.out.println("Creating keys context...");
@@ -216,7 +235,7 @@ public class DeveloperInterface {
 
 	}
 
-	private boolean deleteApp() throws UnknownHostException, IOException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation, InvalidKeyException, SignatureException {
+	private boolean deleteApp() throws UnknownHostException, IOException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation, InvalidKeyException, SignatureException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
 		Path appPath = FileSystems.getDefault().getPath(appDir);
 		boolean messageResult = sendSyncMessageAndGetResponse(String.format("%s %s %s", Messages.DELETE_APP,this.userName,appPath.getFileName().toString()));
 
@@ -247,7 +266,7 @@ public class DeveloperInterface {
 		return true;
 	}
 
-	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation, InvalidKeyException, SignatureException {
+	private boolean deployApp() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FailedAttestation, InvalidKeyException, SignatureException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
 
 		System.out.println("Sending app to monitor....");		
 
@@ -282,7 +301,7 @@ public class DeveloperInterface {
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir,Integer.parseInt(instances));
 			try {
 				commandResult = devInt.deployApp();
-			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException e) {
+			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
 				System.err.println("Failed to deploy app:" + e.getMessage());
 				System.exit(1);
 			}
@@ -295,7 +314,7 @@ public class DeveloperInterface {
 			devInt = new DeveloperInterface(monitorHost, userName, key, appDir);
 			try {
 				commandResult = devInt.deleteApp();
-			} catch (IOException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException e) {
+			} catch (IOException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
 				System.err.println("Failed to delete app:" + e.getMessage());
 
 			}

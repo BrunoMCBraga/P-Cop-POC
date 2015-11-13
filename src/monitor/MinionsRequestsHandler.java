@@ -9,16 +9,25 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -49,7 +58,7 @@ public class MinionsRequestsHandler implements Runnable {
 	}
 
 
-	private void attestMinion(Socket minionSocket) throws IOException, InvalidMessageException, FailedAttestation, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException, SignatureException {
+	private void attestMinion(Socket minionSocket) throws IOException, InvalidMessageException, FailedAttestation, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException, SignatureException, IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException, NoSuchPaddingException {
 
 		byte[] signedConfig = null;
 		//While approved configuration is unavaiable, wait.
@@ -64,8 +73,6 @@ public class MinionsRequestsHandler implements Runnable {
 		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 		Certificate auditorCert = ks.getCertificate("Auditor");
 		keyStoreIStream.close();
-		Signature rsa = Signature.getInstance("SHA1withRSA"); 
-		rsa.initVerify(auditorCert);
 
 
 		BufferedReader minionAttestationReader = minionAttestationReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
@@ -75,13 +82,26 @@ public class MinionsRequestsHandler implements Runnable {
 		minionAttestationWriter.newLine();
 		minionAttestationWriter.flush();
 
+		
 		String[] splittedResponse = minionAttestationReader.readLine().split(" ");
+		
+		byte[] tpmPubKeyBytes = Base64.getDecoder().decode(AttestationConstants.TPM_PUB_KEY.getBytes());
+		X509EncodedKeySpec spec = new X509EncodedKeySpec(tpmPubKeyBytes);
+		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+		PublicKey tpmPubKey = keyFactory.generatePublic(spec);
+		
+		//Cipher cipher = Cipher.getInstance("RSA");   
+	    //cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
+	    //String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(splittedResponse[1].getBytes()));
 
-		rsa.update(splittedResponse[1].getBytes());
+	    
+		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+		tpmSignature.initVerify(tpmPubKey);
+		tpmSignature.update(splittedResponse[1].getBytes());
 
 		
 		if(splittedResponse[0].equals(Messages.QUOTE))
-			if(rsa.verify(signedConfig)){
+			if(tpmSignature.verify((AttestationConstants.NONCE+this.monitor.getMinionsSHA1()).getBytes())){
 				minionAttestationWriter.write(Messages.OK);
 				minionAttestationWriter.newLine();
 				minionAttestationWriter.flush();
@@ -152,7 +172,7 @@ public class MinionsRequestsHandler implements Runnable {
 
 			try {
 				attestMinion(minionSocket);
-			} catch (IOException | InvalidMessageException | FailedAttestation | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException | SignatureException e1) {
+			} catch (IOException | InvalidMessageException | FailedAttestation | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException | SignatureException | IllegalBlockSizeException | BadPaddingException | InvalidKeySpecException | NoSuchPaddingException e1) {
 				System.err.println("Failed to attest minion:" + e1.getMessage());
 				continue;
 			}

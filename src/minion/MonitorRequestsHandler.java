@@ -23,6 +23,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import exceptions.InvalidMessageException;
+import exceptions.RejectedConfiguration;
+import global.AttestationConstants;
 import global.Credentials;
 import global.Directories;
 import global.Messages;
@@ -92,6 +95,28 @@ public class MonitorRequestsHandler implements Runnable {
 		}
 
 		return true;
+	}
+	
+	private void processAttestation(Socket monitorSocket) throws IOException, InvalidMessageException, RejectedConfiguration {
+
+		BufferedReader attestationReader = attestationReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
+		BufferedWriter attestationWriter = attestationWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
+
+		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
+		if(attestationRequestArray[0].equals(Messages.ATTEST)){
+
+			attestationWriter.write(String.format("%s %s", Messages.QUOTE, AttestationConstants.QUOTE));
+			attestationWriter.newLine();
+			attestationWriter.flush();
+
+		}
+		else 		
+			throw new InvalidMessageException("Expected:" + Messages.ATTEST + ". Received:" + attestationRequestArray[0]);
+
+
+		if(attestationReader.readLine().equals(Messages.ERROR))
+			throw new RejectedConfiguration("Monitor rejected platform attestation.");
+
 	}
 
 	@Override
@@ -190,6 +215,15 @@ public class MonitorRequestsHandler implements Runnable {
 					requestResult = deleteApp(splittedRequest[1]);
 				} catch (InterruptedException | IOException e) {
 					System.err.println("Unable to delete:"+splittedRequest[1]);
+				}
+				break;
+			case Messages.ATTEST:
+				System.out.println("Attesting...");
+				try {
+					processAttestation(monitorSocket);
+				} catch (IOException | InvalidMessageException | RejectedConfiguration e) {
+					System.err.println("Unable to process attestation");
+					System.exit(1);
 				}
 				break;
 			}

@@ -2,6 +2,7 @@ package admin;
 import java.lang.ProcessBuilder;
 import java.net.Socket;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -13,9 +14,16 @@ import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.xml.bind.DatatypeConverter;
 
 import exceptions.FailedAttestation;
@@ -64,7 +72,7 @@ public class AdminInterface {
 		this.key = key;
 	}
 
-	private void attestLogger(Socket loggerSocket) throws IOException, FailedAttestation, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, InvalidKeyException, SignatureException {
+	private void attestLogger(Socket loggerSocket) throws IOException, FailedAttestation, InvalidMessageException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, InvalidKeyException, SignatureException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
 		
 		//Keystore initialization
 		KeyStore ks = KeyStore.getInstance("JKS");
@@ -72,10 +80,6 @@ public class AdminInterface {
 		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
 		Certificate auditorCert = ks.getCertificate("Auditor");
 		keyStoreIStream.close();
-		
-		Signature rsa = Signature.getInstance("SHA1withRSA"); 
-		rsa.initVerify(auditorCert);
-		
 		
 		BufferedReader loggerAttestationReader = new BufferedReader(new InputStreamReader(loggerSocket.getInputStream()));
 		BufferedWriter loggerAttestationWriter = new BufferedWriter(new OutputStreamWriter(loggerSocket.getOutputStream()));
@@ -88,11 +92,22 @@ public class AdminInterface {
 		String quote = loggerAttestationReader.readLine();
 		String[] splittedMessage = quote.split(" ");
 		
-		rsa.update(splittedMessage[1].getBytes());
+		byte[] tpmPubKeyBytes = Base64.getDecoder().decode(AttestationConstants.TPM_PUB_KEY.getBytes());
+		X509EncodedKeySpec spec = new X509EncodedKeySpec(tpmPubKeyBytes);
+		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+		PublicKey tpmPubKey = keyFactory.generatePublic(spec);
+	
+		Signature auditorSignature = Signature.getInstance("SHA1withRSA"); 
+		auditorSignature.initVerify(auditorCert);
+		auditorSignature.update(splittedMessage[2].getBytes());
+		
+		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+		tpmSignature.initVerify(tpmPubKey);
+		tpmSignature.update((AttestationConstants.NONCE+splittedMessage[2]).getBytes());
 		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
-			if(rsa.verify(DatatypeConverter.parseHexBinary(splittedMessage[2]))){
+			if(auditorSignature.verify(DatatypeConverter.parseHexBinary(splittedMessage[3])) && tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedMessage[1]))){
 				System.out.println("Monitor has trusted configuration.");
 				loggerAttestationWriter.write(Messages.OK);
 				loggerAttestationWriter.newLine();
@@ -134,7 +149,7 @@ public class AdminInterface {
 	}
 
 
-	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException, FailedAttestation, InvalidKeyException, SignatureException {
+	private boolean manageNode() throws IOException, InterruptedException, InvalidMessageException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException, FailedAttestation, InvalidKeyException, SignatureException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
 
 		boolean proxyCreationResult = startLocalProxy();
 
@@ -246,7 +261,7 @@ public class AdminInterface {
 			aI = new AdminInterface(userName, hubHost, remoteHost, key);
 			try {
 				commandResult = aI.manageNode();
-			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException e) {
+			} catch (IOException | InterruptedException | InvalidMessageException | UnrecoverableKeyException | KeyManagementException | KeyStoreException | NoSuchAlgorithmException | CertificateException | FailedAttestation | InvalidKeyException | SignatureException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
 				System.err.println("Failed to run management session:" + e.getMessage());
 				System.exit(1);
 			}

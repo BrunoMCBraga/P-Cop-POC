@@ -7,22 +7,31 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyFactory;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
@@ -64,7 +73,7 @@ public class AuditorInterface {
 	private byte[] minionSignature;
 	
 	//Attest node against the expected value and uploads configuration signatures for monitor.
-	private void attestMonitor(String host, String expectedValue) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException, InvalidMessageException, FailedAttestation {
+	private void attestMonitor(String host) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException, InvalidMessageException, FailedAttestation, NoSuchPaddingException, InvalidKeySpecException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, SignatureException {
 
 			String attestRequestString = String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE);
 
@@ -100,15 +109,30 @@ public class AuditorInterface {
 			attestationSessionWriter.newLine();
 			attestationSessionWriter.flush();
 
+			byte[] tpmPubKeyBytes = Base64.getDecoder().decode(AttestationConstants.TPM_PUB_KEY.getBytes());
+			X509EncodedKeySpec spec = new X509EncodedKeySpec(tpmPubKeyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			PublicKey tpmPubKey = keyFactory.generatePublic(spec);
+
+			
 			//This detects when the socket is closed....If null response....
 			String quote = attestationSessionReader.readLine();
 			String[] splittedQuote = quote.split(" ");
+			
+			//Cipher cipher = Cipher.getInstance("RSA");   
+		    //cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
+		    //String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(splittedQuote[1].getBytes()));
 
+			Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+			tpmSignature.initVerify(tpmPubKey);
+			tpmSignature.update(splittedQuote[1].getBytes());
+			
+			
 			//QUOTE QUOTE TRUSTED_QUOTE
 			if(splittedQuote[0].equals(Messages.QUOTE)){
-				if(splittedQuote[1].equals(expectedValue)){
+				if(tpmSignature.verify(AttestationConstants.DECRYPTED_QUOTE.getBytes())){
 					//OK monitor_singed_config minions_signed_config
-					attestationSessionWriter.write(String.format("%s %s %s",Messages.OK, DatatypeConverter.printHexBinary(this.monitorSignature), DatatypeConverter.printHexBinary(this.minionSignature)));
+					attestationSessionWriter.write(String.format("%s %s %s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.monitorSignature), AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.minionSignature)));
 					attestationSessionWriter.newLine();
 					attestationSessionWriter.flush();
 					//send aproved signature.
@@ -120,11 +144,11 @@ public class AuditorInterface {
 			attestationSessionWriter.write(Messages.ERROR);
 			attestationSessionWriter.newLine();
 			attestationSessionWriter.flush();
-			throw new FailedAttestation("Monitor has config:" + splittedQuote[1] + ". Expected:" + expectedValue);
+			throw new FailedAttestation("Monitor has wrong config");
 
 		}
 	//Attest node against the expected value and uploads configuration signatures for logger.
-	private void attestLogger(String host, String expectedValue) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException, InvalidMessageException, FailedAttestation {
+	private void attestLogger(String host) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException, KeyManagementException, InvalidMessageException, FailedAttestation, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, SignatureException {
 
 		String attestRequestString = String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE);
 
@@ -158,15 +182,30 @@ public class AuditorInterface {
 		attestationSessionWriter.write(attestRequestString);
 		attestationSessionWriter.newLine();
 		attestationSessionWriter.flush();
+		
+		byte[] tpmPubKeyBytes = Base64.getDecoder().decode(AttestationConstants.TPM_PUB_KEY.getBytes());
+		X509EncodedKeySpec spec = new X509EncodedKeySpec(tpmPubKeyBytes);
+		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+		PublicKey tpmPubKey = keyFactory.generatePublic(spec);
 
 		//This detects when the socket is closed....If null response....
 		String quote = attestationSessionReader.readLine();
 		String[] splittedQuote = quote.split(" ");
 
+		//Cipher cipher = Cipher.getInstance("RSA");   
+	    //cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
+	    //String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(splittedQuote[1].getBytes()));
+
+		
+		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+		tpmSignature.initVerify(tpmPubKey);
+		tpmSignature.update(splittedQuote[1].getBytes());
+		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedQuote[0].equals(Messages.QUOTE)){
-			if(splittedQuote[1].equals(expectedValue)){
-				attestationSessionWriter.write(String.format("%s %s",Messages.OK, DatatypeConverter.printHexBinary(this.hubSignature)));
+			if(tpmSignature.verify(AttestationConstants.DECRYPTED_QUOTE.getBytes())){
+				//OK monitor_singed_config minions_signed_config
+				attestationSessionWriter.write(String.format("%s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.hubSignature)));
 				attestationSessionWriter.newLine();
 				attestationSessionWriter.flush();
 				//send aproved signature.
@@ -178,7 +217,7 @@ public class AuditorInterface {
 		attestationSessionWriter.write(Messages.ERROR);
 		attestationSessionWriter.newLine();
 		attestationSessionWriter.flush();
-		throw new FailedAttestation("Logger has config:" + splittedQuote[1] + ". Expected:" + expectedValue);
+		throw new FailedAttestation("Logger has wrong config.");
 
 	}
 
@@ -199,13 +238,15 @@ public class AuditorInterface {
 		
 	}
 	
+	
+	
 	public static void main(String[] args) throws IOException{
 
 		AuditorInterface aI = new AuditorInterface();
 		try {
-			aI.monitorSignature = aI.generateSignature(AttestationConstants.QUOTE.getBytes());
-			aI.hubSignature = aI.generateSignature(AttestationConstants.QUOTE.getBytes());
-			aI.minionSignature = aI.generateSignature(AttestationConstants.QUOTE.getBytes());
+			aI.monitorSignature = aI.generateSignature(AttestationConstants.PCR_SHA1.getBytes());
+			aI.hubSignature = aI.generateSignature(AttestationConstants.PCR_SHA1.getBytes());
+			aI.minionSignature = aI.generateSignature(AttestationConstants.PCR_SHA1.getBytes());
 		} catch (UnrecoverableKeyException | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException
 				| CertificateException | NoSuchProviderException | SignatureException e1) {
 			System.err.println("Failed to generate quote signatures:" + e1.getMessage());
@@ -232,8 +273,8 @@ public class AuditorInterface {
 
 		while (true){
 			System.out.println("Available commands:");
-			System.out.println("Attest monitor:attm monitor_host expected_value");
-			System.out.println("Attest logger:attl logger_host expected_value");
+			System.out.println("Attest monitor:attm monitor_host");
+			System.out.println("Attest logger:attl logger_host");
 			System.out.println("Exit:e");
 			System.out.print(">");
 
@@ -242,19 +283,19 @@ public class AuditorInterface {
 			switch (splittedCommand[0]) {
 			case "attm":
 				try {
-					aI.attestMonitor(splittedCommand[1], splittedCommand[2]);
+					aI.attestMonitor(splittedCommand[1]);
 				} catch (UnrecoverableKeyException | KeyManagementException | KeyStoreException
 						| NoSuchAlgorithmException | CertificateException | InvalidMessageException
-						| FailedAttestation e) {
+						| FailedAttestation | InvalidKeyException | NoSuchPaddingException | InvalidKeySpecException | IllegalBlockSizeException | BadPaddingException | SignatureException e) {
 					System.err.println("Failed to attest monitor:" + e.getMessage());
 				}
 				break;
 			case "attl":
 				try {
-					aI.attestLogger(splittedCommand[1], splittedCommand[2]);
+					aI.attestLogger(splittedCommand[1]);
 				} catch (UnrecoverableKeyException | KeyManagementException | KeyStoreException
 						| NoSuchAlgorithmException | CertificateException | InvalidMessageException
-						| FailedAttestation e) {
+						| FailedAttestation | InvalidKeyException | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | SignatureException e) {
 					System.err.println("Failed to attest logger:" + e.getMessage());
 
 				}

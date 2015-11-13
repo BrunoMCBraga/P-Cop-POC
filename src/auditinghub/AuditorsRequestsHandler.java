@@ -59,7 +59,7 @@ public class AuditorsRequestsHandler implements Runnable {
 
 		else if(splittedResult[0].equals(Messages.OK)){
 			System.out.println("Configuration approved. Auditor signature:" + splittedResult[1]);
-			this.auditingHub.setApprovedConfiguration(DatatypeConverter.parseHexBinary(splittedResult[1]));
+			this.auditingHub.setApprovedConfiguration(splittedResult[1],DatatypeConverter.parseHexBinary(splittedResult[2]));
 			return;
 		}
 

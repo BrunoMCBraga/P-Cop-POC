@@ -11,11 +11,15 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,10 +36,12 @@ import javax.net.ssl.TrustManagerFactory;
 import java.util.Set;
 
 import exceptions.ExistentApplicationId;
+import exceptions.FailedAttestation;
 import exceptions.InsufficientMinions;
 import exceptions.InvalidMessageException;
 import exceptions.NonExistentApplicationId;
 import exceptions.UnregisteredMinion;
+import global.AttestationConstants;
 import global.Credentials;
 import global.Directories;
 import global.Messages;
@@ -164,6 +170,93 @@ public class HubsRequestsHandler implements Runnable {
 		return true;
 
 	}
+	
+	private void attestMinion(String minionHost) throws IOException, InvalidMessageException, FailedAttestation, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException, SignatureException {
+
+		SSLContext context = null;
+		try {
+			//Keystore initialization
+			KeyStore ks = KeyStore.getInstance("JKS");
+			FileInputStream keyStoreIStream = new FileInputStream(this.monitorStore);
+		    ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+
+		    //KeyManagerFactory initialization
+		    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		    kmf.init(ks, Credentials.KEY_PASS.toCharArray());
+		    
+		    //TrustStore initialization
+		    KeyStore ts = KeyStore.getInstance("JKS");
+		    FileInputStream trustStoreIStream = new FileInputStream(HubsRequestsHandler.MINIONS_TRUST_STORE);
+		    ts.load(trustStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		    
+		    //TrustManagerFactory initialization
+		    TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		    tmf.init(ts);
+		    
+			context = SSLContext.getInstance("TLS");
+		    context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e1) {
+			System.err.println("Unable to create SSL context for minions:" + e1.getMessage());
+			System.exit(0);
+		}
+		
+		SSLSocketFactory ssf = context.getSocketFactory();
+		Socket minionSocket = null;
+
+		try {
+			minionSocket = ssf.createSocket(minionHost,Ports.MINION_MONITOR_PORT);
+		} catch (IOException e) {
+			System.err.println("Failed to socket for minion for attestation:" + e.getMessage());
+			System.exit(1);
+		}
+		
+		
+		byte[] signedConfig = null;
+		//While approved configuration is unavaiable, wait.
+		while((signedConfig = this.monitor.getApprovedConfiguration()) == null){
+			System.out.println("NULL");
+		}
+		
+
+		//Keystore initialization
+		KeyStore ks = KeyStore.getInstance("JKS");
+		FileInputStream keyStoreIStream = new FileInputStream(this.MINIONS_TRUST_STORE);
+		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		Certificate auditorCert = ks.getCertificate("Auditor");
+		keyStoreIStream.close();
+		Signature rsa = Signature.getInstance("SHA1withRSA"); 
+		rsa.initVerify(auditorCert);
+
+
+		BufferedReader minionAttestationReader = minionAttestationReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
+		BufferedWriter minionAttestationWriter = minionAttestationWriter = new BufferedWriter(new OutputStreamWriter(minionSocket.getOutputStream()));
+
+		minionAttestationWriter.write(String.format("%s %s", Messages.ATTEST,AttestationConstants.NONCE));
+		minionAttestationWriter.newLine();
+		minionAttestationWriter.flush();
+
+		String[] splittedResponse = minionAttestationReader.readLine().split(" ");
+
+		rsa.update(splittedResponse[1].getBytes());
+
+		
+		if(splittedResponse[0].equals(Messages.QUOTE))
+			if(rsa.verify(signedConfig)){
+				minionAttestationWriter.write(Messages.OK);
+				minionAttestationWriter.newLine();
+				minionAttestationWriter.flush();
+				return;
+			}
+		else 
+				throw new InvalidMessageException("Expected:" + Messages.QUOTE + ".Received:" + splittedResponse[0]);
+
+		minionAttestationWriter.write(Messages.ERROR);
+		minionAttestationWriter.newLine();
+		minionAttestationWriter.flush();
+		throw new FailedAttestation("Minion has config:" + splittedResponse[1] + ". Expected" + AttestationConstants.QUOTE);
+
+
+	}
 
 	@Override
 	public void run() {
@@ -245,8 +338,9 @@ public class HubsRequestsHandler implements Runnable {
 			case Messages.SET_TRUSTED:
 				System.out.println("Setting:" + splittedRequest[1] + " trusted.");
 				try {
+					attestMinion(splittedRequest[1]);
 					this.monitor.setMinionTrusted(splittedRequest[1]);
-				} catch (UnregisteredMinion e) {
+				} catch (UnregisteredMinion | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException | SignatureException | IOException | InvalidMessageException | FailedAttestation e) {
 					System.err.println("Unable to set trusted:" + e.getMessage());
 					requestResult = false;
 				}

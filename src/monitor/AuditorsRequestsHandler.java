@@ -12,6 +12,7 @@ import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Signature;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
@@ -59,8 +60,8 @@ public class AuditorsRequestsHandler implements Runnable {
 
 		else if(splittedResult[0].equals(Messages.OK)){
 			System.out.println("Configuration approved. Auditor signature for monitor:" + splittedResult[1] + ". For minions:" + splittedResult[2]);
-			this.monitor.setApprovedConfiguration(DatatypeConverter.parseHexBinary(splittedResult[1]));
-			this.monitor.setApprovedConfigurationForMinions(DatatypeConverter.parseHexBinary(splittedResult[2]));
+			this.monitor.setApprovedConfiguration(splittedResult[1],DatatypeConverter.parseHexBinary(splittedResult[2]));
+			this.monitor.setApprovedConfigurationForMinions(splittedResult[1],DatatypeConverter.parseHexBinary(splittedResult[2]));
 			return;
 		}
 		

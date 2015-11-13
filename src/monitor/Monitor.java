@@ -52,6 +52,8 @@ public class Monitor {
 	private String sshKey;
 	private byte[] approvedConfiguration = null;
 	private byte[] approvedConfigurationForMinions = null;
+	private String approvedSHA1;
+	private String minionsApprovedSHA1;
 
 	public Monitor(String userName, String sshKey, String hostName){
 		
@@ -200,7 +202,8 @@ public class Monitor {
 		return this.trustedMinions;
 	}
 
-	public void setApprovedConfiguration(byte[] signedConfiguration) {
+	public void setApprovedConfiguration(String pcrSHA1, byte[] signedConfiguration) {
+		this.approvedSHA1 = pcrSHA1;
 		this.approvedConfiguration = signedConfiguration;
 		 
 	}
@@ -209,7 +212,8 @@ public class Monitor {
 		return this.approvedConfiguration;
 	}
 	
-	public void setApprovedConfigurationForMinions(byte[] signedConfiguration) {
+	public void setApprovedConfigurationForMinions(String pcrSHA1, byte[] signedConfiguration) {
+		this.minionsApprovedSHA1 = pcrSHA1;
 		this.approvedConfigurationForMinions = signedConfiguration;
 	
 	}
@@ -262,6 +266,14 @@ public class Monitor {
 		} catch (InterruptedException e) {
 			System.exit(0);
 		}
+	}
+
+	public String getMinionsSHA1() {
+		return this.minionsApprovedSHA1;
+	}
+
+	public String getApprovedSHA1() {
+		return this.approvedSHA1;
 	}
 
 	
