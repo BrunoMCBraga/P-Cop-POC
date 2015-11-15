@@ -122,11 +122,11 @@ public class DeveloperInterface {
 	
 		Signature auditorSignature = Signature.getInstance("SHA1withRSA"); 
 		auditorSignature.initVerify(auditorCert);
-		auditorSignature.update(splittedMessage[2].getBytes());
+		auditorSignature.update(DatatypeConverter.parseHexBinary(splittedMessage[2]));
 		
 		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
 		tpmSignature.initVerify(tpmPubKey);
-		tpmSignature.update((AttestationConstants.NONCE+splittedMessage[2]).getBytes());
+		tpmSignature.update(DatatypeConverter.parseHexBinary(AttestationConstants.NONCE+splittedMessage[2]));
 
 		//rsa.update(decryptedQuote.substring(AttestationConstants.NONCE.length()).getBytes());
 

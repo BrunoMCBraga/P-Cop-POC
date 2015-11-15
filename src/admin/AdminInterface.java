@@ -99,11 +99,11 @@ public class AdminInterface {
 	
 		Signature auditorSignature = Signature.getInstance("SHA1withRSA"); 
 		auditorSignature.initVerify(auditorCert);
-		auditorSignature.update(splittedMessage[2].getBytes());
+		auditorSignature.update(DatatypeConverter.parseHexBinary(splittedMessage[2]));
 		
 		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
 		tpmSignature.initVerify(tpmPubKey);
-		tpmSignature.update((AttestationConstants.NONCE+splittedMessage[2]).getBytes());
+		tpmSignature.update(DatatypeConverter.parseHexBinary(AttestationConstants.NONCE+splittedMessage[2]));
 		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){

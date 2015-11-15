@@ -125,12 +125,12 @@ public class AuditorInterface {
 
 			Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
 			tpmSignature.initVerify(tpmPubKey);
-			tpmSignature.update(splittedQuote[1].getBytes());
+			tpmSignature.update(AttestationConstants.DECRYPTED_QUOTE.getBytes());
 			
 			
 			//QUOTE QUOTE TRUSTED_QUOTE
 			if(splittedQuote[0].equals(Messages.QUOTE)){
-				if(tpmSignature.verify(AttestationConstants.DECRYPTED_QUOTE.getBytes())){
+				if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedQuote[1]))){
 					//OK monitor_singed_config minions_signed_config
 					attestationSessionWriter.write(String.format("%s %s %s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.monitorSignature), AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.minionSignature)));
 					attestationSessionWriter.newLine();
@@ -199,11 +199,11 @@ public class AuditorInterface {
 		
 		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
 		tpmSignature.initVerify(tpmPubKey);
-		tpmSignature.update(splittedQuote[1].getBytes());
+		tpmSignature.update(AttestationConstants.DECRYPTED_QUOTE.getBytes());
 		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedQuote[0].equals(Messages.QUOTE)){
-			if(tpmSignature.verify(AttestationConstants.DECRYPTED_QUOTE.getBytes())){
+			if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedQuote[1]))){
 				//OK monitor_singed_config minions_signed_config
 				attestationSessionWriter.write(String.format("%s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.hubSignature)));
 				attestationSessionWriter.newLine();

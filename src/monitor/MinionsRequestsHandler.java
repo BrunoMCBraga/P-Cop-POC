@@ -97,23 +97,24 @@ public class MinionsRequestsHandler implements Runnable {
 	    
 		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
 		tpmSignature.initVerify(tpmPubKey);
-		tpmSignature.update(splittedResponse[1].getBytes());
-
+		tpmSignature.update(DatatypeConverter.parseHexBinary(AttestationConstants.NONCE+this.monitor.getMinionsSHA1()));
+				
+		//??isto eta errado. e o if de baixo tmb..getClass()..getClass().
 		
 		if(splittedResponse[0].equals(Messages.QUOTE))
-			if(tpmSignature.verify((AttestationConstants.NONCE+this.monitor.getMinionsSHA1()).getBytes())){
+			if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedResponse[1]))){
 				minionAttestationWriter.write(Messages.OK);
 				minionAttestationWriter.newLine();
 				minionAttestationWriter.flush();
 				return;
 			}
 		else 
-				throw new InvalidMessageException("Expected:" + Messages.QUOTE + ".Received:" + splittedResponse[0]);
+				throw new InvalidMessageException("Expected:" + Messages.QUOTE + ".Received:" + splittedResponse[0] + ".");
 
 		minionAttestationWriter.write(Messages.ERROR);
 		minionAttestationWriter.newLine();
 		minionAttestationWriter.flush();
-		throw new FailedAttestation("Minion has config:" + splittedResponse[1] + ". Expected" + AttestationConstants.QUOTE);
+		throw new FailedAttestation("Minion has config:" + splittedResponse[1] + ". Expected" + AttestationConstants.QUOTE + ".");
 
 
 	}
