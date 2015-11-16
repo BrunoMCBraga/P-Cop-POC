@@ -119,18 +119,19 @@ public class AuditorInterface {
 			String quote = attestationSessionReader.readLine();
 			String[] splittedQuote = quote.split(" ");
 			
-			//Cipher cipher = Cipher.getInstance("RSA");   
-		    //cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
-		    //String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(splittedQuote[1].getBytes()));
+			Cipher cipher = Cipher.getInstance("RSA");   
+		    cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
+		    String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(DatatypeConverter.parseHexBinary(splittedQuote[1])));
 
-			Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
-			tpmSignature.initVerify(tpmPubKey);
-			tpmSignature.update(AttestationConstants.DECRYPTED_QUOTE.getBytes());
+			//Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+			//tpmSignature.initVerify(tpmPubKey);
+			//tpmSignature.update(AttestationConstants.DECRYPTED_QUOTE.getBytes());
 			
 			
 			//QUOTE QUOTE TRUSTED_QUOTE
 			if(splittedQuote[0].equals(Messages.QUOTE)){
-				if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedQuote[1]))){
+				//if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedQuote[1]))){
+				if(decryptedQuote.equals(AttestationConstants.NONCE+AttestationConstants.PCR_SHA1)){
 					//OK monitor_singed_config minions_signed_config
 					attestationSessionWriter.write(String.format("%s %s %s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.monitorSignature), AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.minionSignature)));
 					attestationSessionWriter.newLine();
@@ -192,18 +193,19 @@ public class AuditorInterface {
 		String quote = attestationSessionReader.readLine();
 		String[] splittedQuote = quote.split(" ");
 
-		//Cipher cipher = Cipher.getInstance("RSA");   
-	    //cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
-	    //String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(splittedQuote[1].getBytes()));
+		Cipher cipher = Cipher.getInstance("RSA");   
+	    cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
+	    String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(DatatypeConverter.parseHexBinary(splittedQuote[1])));
 
+		//Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+		//tpmSignature.initVerify(tpmPubKey);
+		//tpmSignature.update(AttestationConstants.DECRYPTED_QUOTE.getBytes());
 		
-		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
-		tpmSignature.initVerify(tpmPubKey);
-		tpmSignature.update(AttestationConstants.DECRYPTED_QUOTE.getBytes());
 		
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedQuote[0].equals(Messages.QUOTE)){
-			if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedQuote[1]))){
+			//if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedQuote[1]))){
+			if(decryptedQuote.equals(AttestationConstants.NONCE+AttestationConstants.PCR_SHA1)){
 				//OK monitor_singed_config minions_signed_config
 				attestationSessionWriter.write(String.format("%s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.hubSignature)));
 				attestationSessionWriter.newLine();
@@ -275,7 +277,7 @@ public class AuditorInterface {
 			System.out.println("Available commands:");
 			System.out.println("Attest monitor:attm monitor_host");
 			System.out.println("Attest logger:attl logger_host");
-			System.out.println("Exit:e");
+			System.out.println("Exit:exit");
 			System.out.print(">");
 
 			String auditorCommand = promptReader.readLine();

@@ -119,20 +119,24 @@ public class DeveloperInterface {
 		X509EncodedKeySpec spec = new X509EncodedKeySpec(tpmPubKeyBytes);
 		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 		PublicKey tpmPubKey = keyFactory.generatePublic(spec);
+		
+		Cipher cipher = Cipher.getInstance("RSA");   
+	    cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
+	    String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(DatatypeConverter.parseHexBinary(splittedMessage[1])));
 	
 		Signature auditorSignature = Signature.getInstance("SHA1withRSA"); 
 		auditorSignature.initVerify(auditorCert);
 		auditorSignature.update(DatatypeConverter.parseHexBinary(splittedMessage[2]));
 		
-		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
-		tpmSignature.initVerify(tpmPubKey);
-		tpmSignature.update(DatatypeConverter.parseHexBinary(AttestationConstants.NONCE+splittedMessage[2]));
+		//Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+		//tpmSignature.initVerify(tpmPubKey);
+		//tpmSignature.update(DatatypeConverter.parseHexBinary(AttestationConstants.NONCE+splittedMessage[2]));
 
 		//rsa.update(decryptedQuote.substring(AttestationConstants.NONCE.length()).getBytes());
 
 		//QUOTE QUOTE TRUSTED_QUOTE
 		if(splittedMessage[0].equals(Messages.QUOTE)){
-			if(auditorSignature.verify(DatatypeConverter.parseHexBinary(splittedMessage[3])) && tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedMessage[1]))){
+			if(decryptedQuote.equals(AttestationConstants.NONCE+splittedMessage[2]) && auditorSignature.verify(DatatypeConverter.parseHexBinary(splittedMessage[3]))){
 				monitorAttestationWriter.write(Messages.OK);
 				monitorAttestationWriter.newLine();
 				monitorAttestationWriter.flush();

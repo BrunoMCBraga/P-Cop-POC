@@ -90,22 +90,22 @@ public class MinionsRequestsHandler implements Runnable {
 		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 		PublicKey tpmPubKey = keyFactory.generatePublic(spec);
 		
-		//Cipher cipher = Cipher.getInstance("RSA");   
-	    //cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
-	    //String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(splittedResponse[1].getBytes()));
+		Cipher cipher = Cipher.getInstance("RSA");   
+	    cipher.init(Cipher.DECRYPT_MODE, tpmPubKey );  
+	    String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(DatatypeConverter.parseHexBinary(splittedResponse[1])));
 
 	    
-		Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
-		tpmSignature.initVerify(tpmPubKey);
-		System.out.println(this.monitor.getMinionsSHA1());
-		tpmSignature.update(DatatypeConverter.parseHexBinary(AttestationConstants.NONCE+this.monitor.getMinionsSHA1()));
+		//Signature tpmSignature = Signature.getInstance("SHA1withRSA"); 
+		//tpmSignature.initVerify(tpmPubKey);
+		//System.out.println(this.monitor.getMinionsSHA1());
+		//tpmSignature.update(DatatypeConverter.parseHexBinary(AttestationConstants.NONCE+this.monitor.getMinionsSHA1()));
 				
 		//??isto eta errado. e o if de baixo tmb..getClass()..getClass().
 		
 		System.out.println(String.format("|%s|==|%s|", splittedResponse[0],Messages.QUOTE));
 		
 		if(splittedResponse[0].equals(Messages.QUOTE)){
-			if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedResponse[1]))){
+			if(decryptedQuote.equals(AttestationConstants.NONCE+this.monitor.getMinionsSHA1())){
 				minionAttestationWriter.write(Messages.OK);
 				minionAttestationWriter.newLine();
 				minionAttestationWriter.flush();

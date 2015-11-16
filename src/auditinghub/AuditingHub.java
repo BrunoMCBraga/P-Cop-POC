@@ -142,7 +142,8 @@ public class AuditingHub {
 
 
 		new Thread(new AuditorsRequestsHandler(aH)).start();
-		while(aH.getApprovedConfiguration() == null);
+		while(aH.getApprovedConfiguration() == null)
+			System.out.println("Expecting auditor's approval...");;
 
 		ServerSocket hubServerSocket = new ServerSocket(Ports.HUB_LOCAL_PORT);
 		Socket newSessionSocket;

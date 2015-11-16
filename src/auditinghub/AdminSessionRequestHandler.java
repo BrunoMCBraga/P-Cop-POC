@@ -301,7 +301,7 @@ public class AdminSessionRequestHandler implements Runnable {
 
 		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
 		if(attestationRequestArray[0].equals(Messages.ATTEST)){
-
+			System.out.println("Being attested. Sending QUOTE..");
 			attestationWriter.write(String.format("%s %s %s %s", Messages.QUOTE, AttestationConstants.QUOTE, this.auditingHubInstance.getApprovedSHA1(),DatatypeConverter.printHexBinary(this.auditingHubInstance.getApprovedConfiguration())));
 			attestationWriter.newLine();
 			attestationWriter.flush();
