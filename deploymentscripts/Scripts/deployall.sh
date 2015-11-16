@@ -35,25 +35,25 @@ cp -R "$Src" "$UploadedFilesPath"
 
 #Certificates
 CertificatesDir="$UploadedFilesPath""Certificates/"
-CaFilesDir="$CertificatesDir""cafiles/"
+#CaFilesDir="$CertificatesDir""cafiles/"
 CreateAllCertsScript="CreateAllCertificates.sh"
 CreateLocalStoresScript="CreateStores.sh"
 
-rm -rf "$CaFilesDir"
-mkdir "$CaFilesDir"
-touch "$CaFilesDir""index.txt"
-echo 1000 > "$CaFilesDir""serial"
+#rm -rf "$CaFilesDir"
+#mkdir "$CaFilesDir"
+#touch "$CaFilesDir""index.txt"
+#echo 1000 > "$CaFilesDir""serial"
 cd "$CertificatesDir"
 echo "Creating certificates."
 "./$CreateAllCertsScript"
 
-#Create local admin key stores
-cd "Admin"
+#Create local auditor key stores
+cd "Auditor"
 rm -rf *.jks
 "./$CreateLocalStoresScript"
 cp *.jks "../../../../"
 cd ..
-echo "Stores created for admin."
+echo "Stores created for auditor."
 
 #Create local developer key stores
 cd "Developer"
@@ -63,13 +63,15 @@ cp *.jks "../../../../"
 cd ..
 echo "Stores created for developer."
 
-#Create local auditor key stores
-cd "Auditor"
+
+#Create local admin key stores
+cd "Admin"
 rm -rf *.jks
 "./$CreateLocalStoresScript"
 cp *.jks "../../../../"
 cd ../../../
-echo "Stores created for auditor."
+echo "Stores created for admin."
+
 
 #Parse hosts file
 MonitorHosts=`echo -n "$HostsFileContent" | tr '\n' ' '| grep -Pzo "(?<=\[Monitors\]).+(?=\[Minions\])"`
