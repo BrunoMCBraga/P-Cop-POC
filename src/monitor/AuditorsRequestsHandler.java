@@ -59,9 +59,9 @@ public class AuditorsRequestsHandler implements Runnable {
 			throw new RejectedConfiguration("Auditor rejected platform attestation.");
 
 		else if(splittedResult[0].equals(Messages.OK)){
-			System.out.println("Configuration approved. Auditor signature for monitor:" + splittedResult[1] + ". For minions:" + splittedResult[2]);
+			System.out.println("Configuration approved. Auditor signature for monitor:" + splittedResult[1] + ". For minions:" + splittedResult[3]);
 			this.monitor.setApprovedConfiguration(splittedResult[1],DatatypeConverter.parseHexBinary(splittedResult[2]));
-			this.monitor.setApprovedConfigurationForMinions(splittedResult[1],DatatypeConverter.parseHexBinary(splittedResult[2]));
+			this.monitor.setApprovedConfigurationForMinions(splittedResult[3],DatatypeConverter.parseHexBinary(splittedResult[4]));
 			return;
 		}
 		

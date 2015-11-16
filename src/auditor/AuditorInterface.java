@@ -244,9 +244,9 @@ public class AuditorInterface {
 
 		AuditorInterface aI = new AuditorInterface();
 		try {
-			aI.monitorSignature = aI.generateSignature(AttestationConstants.PCR_SHA1.getBytes());
-			aI.hubSignature = aI.generateSignature(AttestationConstants.PCR_SHA1.getBytes());
-			aI.minionSignature = aI.generateSignature(AttestationConstants.PCR_SHA1.getBytes());
+			aI.monitorSignature = aI.generateSignature(DatatypeConverter.parseHexBinary(AttestationConstants.PCR_SHA1));
+			aI.hubSignature = aI.generateSignature(DatatypeConverter.parseHexBinary(AttestationConstants.PCR_SHA1));
+			aI.minionSignature = aI.generateSignature(DatatypeConverter.parseHexBinary(AttestationConstants.PCR_SHA1));
 		} catch (UnrecoverableKeyException | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException
 				| CertificateException | NoSuchProviderException | SignatureException e1) {
 			System.err.println("Failed to generate quote signatures:" + e1.getMessage());
