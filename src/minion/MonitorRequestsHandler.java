@@ -96,22 +96,18 @@ public class MonitorRequestsHandler implements Runnable {
 
 		return true;
 	}
-	
-	private void processAttestation(Socket monitorSocket) throws IOException, InvalidMessageException, RejectedConfiguration {
+
+	private void processAttestation(Socket monitorSocket, String nonce) throws IOException, InvalidMessageException, RejectedConfiguration {
 
 		BufferedReader attestationReader = attestationReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter attestationWriter = attestationWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
 		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
-		if(attestationRequestArray[0].equals(Messages.ATTEST)){
 
-			attestationWriter.write(String.format("%s %s", Messages.QUOTE, AttestationConstants.QUOTE));
-			attestationWriter.newLine();
-			attestationWriter.flush();
+		attestationWriter.write(String.format("%s %s", Messages.QUOTE, AttestationConstants.QUOTE));
+		attestationWriter.newLine();
+		attestationWriter.flush();
 
-		}
-		else 		
-			throw new InvalidMessageException("Expected:" + Messages.ATTEST + ". Received:" + attestationRequestArray[0]);
 
 
 		if(attestationReader.readLine().equals(Messages.ERROR))
@@ -220,7 +216,7 @@ public class MonitorRequestsHandler implements Runnable {
 			case Messages.ATTEST:
 				System.out.println("Attesting...");
 				try {
-					processAttestation(monitorSocket);
+					processAttestation(monitorSocket, splittedRequest[1]);
 				} catch (IOException | InvalidMessageException | RejectedConfiguration e) {
 					System.err.println("Unable to process attestation");
 					System.exit(1);
