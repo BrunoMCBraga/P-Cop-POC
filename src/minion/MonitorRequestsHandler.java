@@ -102,12 +102,10 @@ public class MonitorRequestsHandler implements Runnable {
 		BufferedReader attestationReader = attestationReader = new BufferedReader(new InputStreamReader(monitorSocket.getInputStream()));
 		BufferedWriter attestationWriter = attestationWriter = new BufferedWriter(new OutputStreamWriter(monitorSocket.getOutputStream()));
 
-		String[] attestationRequestArray =  attestationReader.readLine().split(" ");
-
 		attestationWriter.write(String.format("%s %s", Messages.QUOTE, AttestationConstants.QUOTE));
 		attestationWriter.newLine();
 		attestationWriter.flush();
-
+	
 
 
 		if(attestationReader.readLine().equals(Messages.ERROR))
