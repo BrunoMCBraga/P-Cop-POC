@@ -12,26 +12,36 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import java.util.Set;
 
@@ -171,7 +181,7 @@ public class HubsRequestsHandler implements Runnable {
 
 	}
 	
-	private void attestMinion(String minionHost) throws IOException, InvalidMessageException, FailedAttestation, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException, SignatureException {
+	private void attestMinion(String minionHost) throws IOException, InvalidMessageException, FailedAttestation, KeyStoreException, NoSuchAlgorithmException, CertificateException, InvalidKeyException, SignatureException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
 
 		SSLContext context = null;
 		try {
@@ -219,13 +229,13 @@ public class HubsRequestsHandler implements Runnable {
 		
 
 		//Keystore initialization
-		KeyStore ks = KeyStore.getInstance("JKS");
-		FileInputStream keyStoreIStream = new FileInputStream(this.MINIONS_TRUST_STORE);
-		ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
-		Certificate auditorCert = ks.getCertificate("Auditor");
-		keyStoreIStream.close();
-		Signature rsa = Signature.getInstance("SHA1withRSA"); 
-		rsa.initVerify(auditorCert);
+		//KeyStore ks = KeyStore.getInstance("JKS");
+		//FileInputStream keyStoreIStream = new FileInputStream(this.MINIONS_TRUST_STORE);
+		//ks.load(keyStoreIStream, Credentials.KEYSTORE_PASS.toCharArray());
+		//Certificate auditorCert = ks.getCertificate("Auditor");
+		//keyStoreIStream.close();
+		//Signature rsa = Signature.getInstance("SHA1withRSA"); 
+		//rsa.initVerify(auditorCert);
 
 
 		BufferedReader minionAttestationReader = minionAttestationReader = new BufferedReader(new InputStreamReader(minionSocket.getInputStream()));
@@ -236,17 +246,27 @@ public class HubsRequestsHandler implements Runnable {
 		minionAttestationWriter.flush();
 
 		String[] splittedResponse = minionAttestationReader.readLine().split(" ");
+		byte[] tpmPubKeyBytes = Base64.getDecoder().decode(AttestationConstants.TPM_PUB_KEY.getBytes());
+		X509EncodedKeySpec spec = new X509EncodedKeySpec(tpmPubKeyBytes);
+		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+		PublicKey tpmPubKey = keyFactory.generatePublic(spec);
+		
+		Cipher cipher = Cipher.getInstance("RSA");   
+	    cipher.init(Cipher.DECRYPT_MODE, tpmPubKey);  
+	    String decryptedQuote = DatatypeConverter.printHexBinary(cipher.doFinal(DatatypeConverter.parseHexBinary(splittedResponse[1])));
 
-		rsa.update(splittedResponse[1].getBytes());
+
+		//rsa.update(splittedResponse[1].getBytes());
 
 		
-		if(splittedResponse[0].equals(Messages.QUOTE))
-			if(rsa.verify(signedConfig)){
+		if(splittedResponse[0].equals(Messages.QUOTE)){
+			if(decryptedQuote.equals(AttestationConstants.NONCE+this.monitor.getMinionsSHA1())){
 				minionAttestationWriter.write(Messages.OK);
 				minionAttestationWriter.newLine();
 				minionAttestationWriter.flush();
 				return;
 			}
+		}
 		else 
 				throw new InvalidMessageException("Expected:" + Messages.QUOTE + ".Received:" + splittedResponse[0]);
 
@@ -340,7 +360,7 @@ public class HubsRequestsHandler implements Runnable {
 				try {
 					attestMinion(splittedRequest[1]);
 					this.monitor.setMinionTrusted(splittedRequest[1]);
-				} catch (UnregisteredMinion | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException | SignatureException | IOException | InvalidMessageException | FailedAttestation e) {
+				} catch (UnregisteredMinion | InvalidKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException | SignatureException | IOException | InvalidMessageException | FailedAttestation | InvalidKeySpecException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
 					System.err.println("Unable to set trusted:" + e.getMessage());
 					requestResult = false;
 				}

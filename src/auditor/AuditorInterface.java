@@ -133,7 +133,7 @@ public class AuditorInterface {
 				//if(tpmSignature.verify(DatatypeConverter.parseHexBinary(splittedQuote[1]))){
 				if(decryptedQuote.equals(AttestationConstants.NONCE+AttestationConstants.PCR_SHA1)){
 					//OK monitor_singed_config minions_signed_config
-					attestationSessionWriter.write(String.format("%s %s %s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.monitorSignature), AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.minionSignature)));
+					attestationSessionWriter.write(String.format("%s %s %s %s",Messages.OK, AttestationConstants.PCR_SHA1,DatatypeConverter.printHexBinary(this.monitorSignature), AttestationConstants.PCR_SHA1));
 					attestationSessionWriter.newLine();
 					attestationSessionWriter.flush();
 					//send aproved signature.

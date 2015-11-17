@@ -51,7 +51,6 @@ public class Monitor {
 	private String userName;
 	private String sshKey;
 	private byte[] approvedConfiguration = null;
-	private byte[] approvedConfigurationForMinions = null;
 	private String approvedSHA1;
 	private String minionsApprovedSHA1;
 
@@ -212,16 +211,12 @@ public class Monitor {
 		return this.approvedConfiguration;
 	}
 	
-	public void setApprovedConfigurationForMinions(String pcrSHA1, byte[] signedConfiguration) {
+	public void setApprovedConfigurationForMinions(String pcrSHA1) {
 		this.minionsApprovedSHA1 = pcrSHA1;
-		this.approvedConfigurationForMinions = signedConfiguration;
 	
 	}
 	
-	public byte[] getApprovedConfigurationForMinions() {
-		return this.approvedConfigurationForMinions;
-		 
-	}
+
 	
 	public static void main(String[] args) throws IOException{
 
